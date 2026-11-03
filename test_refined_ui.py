@@ -6,10 +6,10 @@ ROOT = Path(__file__).resolve().parent
 
 class RefinedTests(unittest.TestCase):
     def test_close_pane_uses_compact_control(self):
-        skin=(ROOT/'nexus_skin.py').read_text()
+        skin=(ROOT/'nexus_nova1_style.py').read_text()
         ws=(ROOT/'nexus_workspace.py').read_text()
-        self.assertIn('class TileCloseButton(QPushButton):',skin)
-        self.assertIn('close_button=TileCloseButton(self)',ws)
+        self.assertIn('class NovaOneCloseButton(QPushButton):',skin)
+        self.assertIn('close_button=NovaOneCloseButton(self)',ws)
         self.assertNotIn("button('×',lambda:self.closed.emit())",ws)
 
     def test_menu_anchored_to_topbar(self):
