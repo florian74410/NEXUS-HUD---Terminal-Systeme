@@ -80,13 +80,15 @@ def test_connection(c):
         with urllib.request.urlopen(req,timeout=5) as response:return True,'HTTP '+str(response.status)
     except urllib.error.HTTPError as e:return True,'HTTP '+str(e.code)+' (serveur joignable)'
 
+from nexus_skin import AssetButton, AssetSurface
+
 class GlassDialog(QDialog):
     def __init__(self,parent,title):
         super().__init__(parent)
         self.setWindowTitle(title);self.setWindowFlags(Qt.WindowType.Dialog|Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground,True)
-        self.setMinimumSize(650,520)
-        self.setStyleSheet("""QWidget#glass {background:rgba(3,21,37,245);border:2px solid #24c7ed;border-radius:12px;}
+        self.setMinimumSize(590,460)
+        self.setStyleSheet("""QFrame#glass {background:transparent;border:0;}
         QLabel {color:#dffaff;background:transparent;border:0;} QLineEdit,QComboBox,QSpinBox,QListWidget,QPlainTextEdit {background:#061b2b;color:#e9ffff;border:1px solid #176e91;padding:5px;}
         QPushButton {background:#082f46;color:#e6ffff;border:1px solid #1badd4;padding:7px 12px;}
         QPushButton:hover {background:#115574;border-color:#66f7ff;}
@@ -95,10 +97,11 @@ class GlassDialog(QDialog):
         QTabBar::tab:selected {background:#116481;color:white;}
         QCheckBox {color:#e6ffff;}""")
         outside=QVBoxLayout(self);outside.setContentsMargins(12,12,12,12)
-        self.panel=QWidget();self.panel.setObjectName('glass');outside.addWidget(self.panel)
-        self.body=QVBoxLayout(self.panel);self.body.setContentsMargins(20,18,20,20)
+        popup_art='Settings.svg' if 'PARAM' in title.upper() else ('Connection.svg' if 'CONNEX' in title.upper() or 'SESSION' in title.upper() else ('Confirm.svg' if 'CONFIRM' in title.upper() else 'Details.svg'))
+        self.panel=AssetSurface(category='Popups',name=popup_art);self.panel.setObjectName('glass');outside.addWidget(self.panel)
+        self.body=QVBoxLayout(self.panel);self.body.setContentsMargins(36,46,36,35)
         top=QHBoxLayout();heading=QLabel('⬡  '+title);heading.setStyleSheet('font-size:17px;color:#6ef3ff;font-weight:bold;')
-        top.addWidget(heading);top.addStretch();x=QPushButton('✕');x.clicked.connect(self.reject);top.addWidget(x);self.body.addLayout(top)
+        top.addWidget(heading);top.addStretch();x=AssetButton('✕');x.clicked.connect(self.reject);top.addWidget(x);self.body.addLayout(top)
     def mousePressEvent(self,e):
         if e.button()==Qt.MouseButton.LeftButton and e.position().y()<70:
             if self.windowHandle():self.windowHandle().startSystemMove()
@@ -118,11 +121,11 @@ class ConnectionsDialog(GlassDialog):
             lst=QListWidget();self.lists[typ]=lst;v.addWidget(lst,1)
             row=QHBoxLayout()
             for title,cb in [('＋ Ajouter',lambda checked=False,t=typ:self.edit(t)),('Modifier',lambda checked=False,t=typ:self.edit(t,True)),('Supprimer',lambda checked=False,t=typ:self.remove(t)),('Tester',lambda checked=False,t=typ:self.test(t))]:
-                b=QPushButton(title);b.clicked.connect(cb);row.addWidget(b)
+                b=AssetButton(title);b.clicked.connect(cb);row.addWidget(b)
             v.addLayout(row);self.tabs.addTab(page,typ)
         self.tabs.setCurrentIndex(TYPES.index(initial) if initial in TYPES else 0)
         self.refresh()
-        foot=QHBoxLayout();foot.addStretch();close=QPushButton('Fermer');close.clicked.connect(self.accept);foot.addWidget(close);self.body.addLayout(foot)
+        foot=QHBoxLayout();foot.addStretch();close=AssetButton('Fermer');close.clicked.connect(self.accept);foot.addWidget(close);self.body.addLayout(foot)
     def refresh(self):
         for typ,lst in self.lists.items():
             lst.clear()
@@ -150,7 +153,7 @@ class ConnectionsDialog(GlassDialog):
         if scheme:
             scheme.addItems(['https','http']);scheme.setCurrentText(c.get('scheme','https') if c else 'https');f.addRow('Protocole',scheme)
         enabled=QCheckBox('Activer dans le profil');enabled.setChecked(c.get('enabled',True) if c else True);f.addRow('',enabled)
-        row=QHBoxLayout();row.addStretch();ok=QPushButton('Enregistrer');cancel=QPushButton('Annuler');row.addWidget(cancel);row.addWidget(ok);d.body.addLayout(row);cancel.clicked.connect(d.reject)
+        row=QHBoxLayout();row.addStretch();ok=AssetButton('Enregistrer');cancel=AssetButton('Annuler');row.addWidget(cancel);row.addWidget(ok);d.body.addLayout(row);cancel.clicked.connect(d.reject)
         def commit():
             record={'type':typ,'name':name.text().strip(),'host':host.text().strip(),'port':port.value(),'enabled':enabled.isChecked()}
             if login:record.update(login=login.text().strip(),key=os.path.expanduser(key.text().strip()))
@@ -186,7 +189,7 @@ class SessionDialog(GlassDialog):
         self.refresh()
         row=QHBoxLayout()
         for text,callback in [('Ouvrir terminal SSH',self.open_ssh),('Tester connexion',self.test),('Paramètres connexions',self.settings)]:
-            b=QPushButton(text);b.clicked.connect(callback);row.addWidget(b)
+            b=AssetButton(text);b.clicked.connect(callback);row.addWidget(b)
         self.body.addLayout(row)
         self.body.addWidget(QLabel('Macro ↔ ASUS : configurer SSH sur les deux PC, autoriser la clé publique, puis rejoindre le même nom tmux.'))
     def refresh(self):

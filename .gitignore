@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+Dependency/runtime/*
+!Dependency/runtime/README.txt
+!Dependency/runtime/.keep
+Dependency/wheels/*.whl
+*.deb
+*.log
+.DS_Store

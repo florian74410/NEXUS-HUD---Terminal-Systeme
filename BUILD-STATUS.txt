@@ -1,0 +1,4 @@
+N3XV5 Terminal HUD 1.4.1 Rework (DEV)
+Source: N3XV5 v1.4.0 with previous features retained; archive Assets_Theme_NEXUS.tar(1).gz imported.
+Test status to be filled after testing. PySide6/QTermWidget GUI untested on Linux Mint.
+No HUB interface, CLI protocol, or remote GitHub publication implied by this archive.
