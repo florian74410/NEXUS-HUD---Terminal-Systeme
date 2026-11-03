@@ -1,5 +1,5 @@
 """Local SSH key manager. Never uploads or displays private key material."""
-from nexus_skin import AssetButton
+from nexus_nova1_style import NovaOneButton
 from pathlib import Path
 import os,subprocess
 from PySide6.QtWidgets import QDialog,QVBoxLayout,QHBoxLayout,QLabel,QLineEdit,QPushButton,QMessageBox,QPlainTextEdit,QApplication
@@ -14,8 +14,8 @@ class SSHKeysDialog(QDialog):
         self.passphrase=QLineEdit();self.passphrase.setEchoMode(QLineEdit.EchoMode.Password)
         self.passphrase.setPlaceholderText('Phrase secrète (recommandée)');lay.addWidget(self.passphrase)
         row=QHBoxLayout();lay.addLayout(row)
-        generate=AssetButton('Générer');generate.clicked.connect(self.generate);row.addWidget(generate)
-        copy=AssetButton('Copier clé publique');copy.clicked.connect(self.copy_public);row.addWidget(copy)
+        generate=NovaOneButton('Générer');generate.clicked.connect(self.generate);row.addWidget(generate)
+        copy=NovaOneButton('Copier clé publique');copy.clicked.connect(self.copy_public);row.addWidget(copy)
         self.result=QPlainTextEdit();self.result.setReadOnly(True);lay.addWidget(self.result)
         lay.addWidget(QLabel('La clé privée reste dans ~/.ssh/ (permissions 600). Ne la partage jamais.'))
     def _key_path(self):
