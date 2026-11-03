@@ -1,4 +1,12 @@
-N3XV5 Terminal HUD 1.4.1 Rework (DEV)
-Source: N3XV5 v1.4.0 with previous features retained; archive Assets_Theme_NEXUS.tar(1).gz imported.
-Test status to be filled after testing. PySide6/QTermWidget GUI untested on Linux Mint.
-No HUB interface, CLI protocol, or remote GitHub publication implied by this archive.
+N3XV5 Terminal HUD — V1.4.1 NEXUS Assets Rework (DEV)
+
+SOURCE AUDIT: v1.4.0 logic preserved; Assets_Theme_NEXUS.tar(1).gz incorporated.
+ARTWORK: 48 original SVG + 5 original GIF imported in assets/theme_nexus/.
+UNIT TESTS: 30 PASS (unittest discover -q -p test*.py).
+SYNTAX: Python AST parsed; Bash scripts bash -n OK.
+SVG SOURCE: 48/48 parse with xml.etree.ElementTree.
+GUI/PTY: PySide6 and pyside6_qtermwidget are not installed in test container; GUI not run here.
+LIVE SSH / TMUX / LAN PAIRING: not end-to-end tested.
+DEBIAN: scripts exist but .deb not validated for standalone install on Linux Mint.
+GITHUB: feature branch work/n3xv5-terminal-v1.4.1-theme-nexus; main untouched pending QA.
+INDEPENDENCE: no HUB or IATB-CLI changes.
