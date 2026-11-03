@@ -1,5 +1,5 @@
 """Opt-in LAN SSH onboarding; never enables sshd or trusts another host silently."""
-from nexus_skin import AssetButton
+from nexus_nova1_style import NovaOneButton
 from pathlib import Path
 import os
 import re
@@ -40,8 +40,8 @@ class LANSSHDialog(QDialog):
         v.addWidget(QLabel('Une identité propre à ce PC. La clé privée ne quitte jamais la machine.'))
         self.info=QPlainTextEdit();self.info.setReadOnly(True);self.info.setMaximumHeight(135);v.addWidget(self.info)
         row=QHBoxLayout();v.addLayout(row)
-        gen=AssetButton('Créer la clé N3XV5');gen.clicked.connect(self.generate);row.addWidget(gen)
-        copy=AssetButton('Copier la clé publique');copy.clicked.connect(self.copy_public);row.addWidget(copy)
+        gen=NovaOneButton('Créer la clé N3XV5');gen.clicked.connect(self.generate);row.addWidget(gen)
+        copy=NovaOneButton('Copier la clé publique');copy.clicked.connect(self.copy_public);row.addWidget(copy)
         v.addWidget(QLabel('Autoriser ce PC sur un autre PC N3XV5 :'))
         v.addWidget(QLabel('1. Sur le PC distant : installer et activer openssh-server volontairement.'))
         v.addWidget(QLabel('2. Sur le PC distant : ajouter cette clé publique à ~/.ssh/authorized_keys.'))
@@ -57,7 +57,7 @@ class LANSSHDialog(QDialog):
         self.example=QPlainTextEdit();self.example.setReadOnly(True);self.example.setMaximumHeight(75);v.addWidget(self.example)
         self.target.textChanged.connect(self.refresh)
         v.addWidget(QLabel('⚠ L’accès SSH donne accès au compte distant : n’autorise que des appareils de confiance.'))
-        close=AssetButton('Fermer');close.clicked.connect(self.accept);v.addWidget(close)
+        close=NovaOneButton('Fermer');close.clicked.connect(self.accept);v.addWidget(close)
         self.refresh()
     @staticmethod
     def local_ips():
