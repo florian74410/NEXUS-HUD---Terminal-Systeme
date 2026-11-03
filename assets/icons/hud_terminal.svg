@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+<defs>
+<linearGradient id="bodyi0terminal" x1="0" y1="0" x2="0.95" y2="1"><stop offset="0" stop-color="#21313C" stop-opacity=".97"/><stop offset=".38" stop-color="#08172A" stop-opacity=".97"/><stop offset="1" stop-color="#1264F4" stop-opacity=".27"/></linearGradient>
+<linearGradient id="stripei0terminal" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#1264F4" stop-opacity="0"/><stop offset=".35" stop-color="#00DEFF" stop-opacity=".25"/><stop offset=".8" stop-color="#00DEFF"/><stop offset="1" stop-color="#1264F4" stop-opacity="0"/></linearGradient>
+<filter id="glowi0terminal" x="-45%" y="-100%" width="190%" height="300%"><feGaussianBlur stdDeviation="2.8"/></filter>
+<filter id="softi0terminal" x="-50%" y="-100%" width="200%" height="300%"><feGaussianBlur stdDeviation="1.4"/></filter>
+</defs>
+<path d="M 12 4 H 84 L 92 12 V 84 L 84 92 H 12 L 4 84 V 12 Z" fill="url(#bodyi0terminal)" opacity=".97"/>
+<path d="M 12 4 H 84 L 92 12 V 84 L 84 92 H 12 L 4 84 V 12 Z" fill="none" stroke="#00DEFF" stroke-width="5" opacity=".28" filter="url(#glowi0terminal)"/>
+<path d="M 12 4 H 84 L 92 12 V 84 L 84 92 H 12 L 4 84 V 12 Z" fill="none" stroke="#00DEFF" stroke-width="1.4" opacity=".9"/>
+<path d="M 21 6 H 63" stroke="url(#stripei0terminal)" stroke-width="2.8"/>
+<path d="M 20 89 H 67" stroke="url(#stripei0terminal)" stroke-width="1.3" opacity=".75"/>
+
+<!-- BLOOD RED: recurring power bus in the edge framing across ALL assets. -->
+<path d="M 60 84 h 17 l 5 -6" fill="none" stroke="#D41535" stroke-width="2.4" stroke-linecap="round" opacity=".98" />
+<circle cx="77" cy="78" r="2.8" fill="#FF2F4F" opacity=".98" />
+<path d="M 12 24 v 15" fill="none" stroke="#C91438" stroke-width="2.2" opacity=".97" />
+<g transform="translate(22 21) scale(1.08)" fill="none" stroke="#00DEFF" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" opacity=".45" filter="url(#glowi0terminal)"><rect x="5" y="7" width="38" height="34" rx="4"/><path d="m12 17 9 7-9 7M26 32h10"/></g>
+<g transform="translate(22 21) scale(1.08)" fill="none" stroke="#00DEFF" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="7" width="38" height="34" rx="4"/><path d="m12 17 9 7-9 7M26 32h10"/></g>
+<path d="M 11 66 v 12 h 13" stroke="#1264F4" fill="none" stroke-width="2" opacity=".65"/>
+</svg>
