@@ -1,6 +1,6 @@
 {
   "name": "NEXUS Terminal",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "entrypoint": "nexus_workspace.py",
   "platform": "Linux/XFCE",
   "session_protocols": [
