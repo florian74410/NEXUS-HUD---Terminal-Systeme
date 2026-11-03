@@ -35,7 +35,7 @@ class N3xv5ThemeTests(unittest.TestCase):
     def test_real_terminal_not_replaced_by_svg_mockup(self):
         src=(ROOT/'nexus_workspace.py').read_text()
         self.assertIn('class Terminal(QTermWidget):',src)
-        self.assertIn('class TerminalTile(ElectricPulseSurface):',src)
+        self.assertIn('class TerminalTile(NovaOneTerminalFrame):',src)
         self.assertIn('self.terminal=Terminal(command,self,',src)
         self.assertIn('QSplitter(orientation)',src)
 
@@ -43,7 +43,7 @@ class N3xv5ThemeTests(unittest.TestCase):
         src=(ROOT/'nexus_workspace.py').read_text()
         for func in ('show_scripts','show_sessions','show_settings','show_ssh_menu','show_pairing'):
             self.assertIn('def '+func+'(',src)
-        self.assertIn("self.nav=AssetSurface(category='Boxes',name='Performance_Tall.svg')",src)
+        self.assertIn("self.nav=NeonGlassPanel(accent=",src)
         self.assertNotIn("button('Terminals',lambda:None",src)
 
     def test_animation_is_real_qt_not_svg_smil(self):
@@ -54,7 +54,7 @@ class N3xv5ThemeTests(unittest.TestCase):
         self.assertIn("remove_text=True",src)
         self.assertIn('def set_artwork(',src)
         workspace=(ROOT/'nexus_workspace.py').read_text()
-        self.assertIn("QMovie(str(ELECTRIC/'ElectroBlueNEON_pcb_signal.gif'))",workspace)
+        self.assertIn("QMovie(str(HERE/'assets'/'animations'/'ElectroBlueNEON_pcb_signal.gif'))",workspace)
 
     def test_critical_module_files_still_present(self):
         for name in ('nexus_quick_commands.py','nexus_pairing_secure.py',
