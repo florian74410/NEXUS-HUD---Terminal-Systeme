@@ -7,6 +7,7 @@ This module never launches shell commands or handles credentials.
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
@@ -35,16 +36,30 @@ def artwork_path(category: str, name: str) -> Path:
     return BASE / category / name
 
 
-def _svg_renderer(path: Path, remove_text=False) -> QSvgRenderer:
-    """Normalize animated source for QtSvg; preserve supplied vector paths."""
+@lru_cache(maxsize=128)
+def _svg_bytes(path_str: str, remove_text: bool = False, electric_only: bool = False) -> bytes:
+    """Cache normalized source bytes, not mutable QSvgRenderer instances.
+
+    QtSvg does not execute SVG/SMIL animations; Qt animates the controls instead.
+    The supplied originals on disk remain unchanged.
+    """
+    path = Path(path_str)
     if not path.is_file():
-        return QSvgRenderer()
+        return b''
     content = path.read_text(encoding='utf-8')
-    # QtSvg does not implement CSS/SMIL animations. Use independent Qt motion.
     content = re.sub(r'<animate\b[^>]*(?:/>|>.*?</animate>)', '', content, flags=re.S)
     if remove_text:
         content = re.sub(r'<text\b[^>]*(?:/>|>.*?</text>)', '', content, flags=re.S)
-    return QSvgRenderer(QByteArray(content.encode('utf-8')))
+    if electric_only:
+        # Keep alerts in red; neutral navigation/action buttons are ElectroBlue.
+        content = re.sub(r'#[Ff][Ff]2346|#[Ff]21[Ff]3[Dd]|#[Ff]21[Ff]3[dD]|#[Ff][Ff]2645', '#22DFFF', content)
+    return content.encode('utf-8')
+
+
+def _svg_renderer(path: Path, remove_text=False, electric_only=False) -> QSvgRenderer:
+    """A fresh mutable renderer per widget, backed by cached source data."""
+    payload = _svg_bytes(str(path), remove_text, electric_only)
+    return QSvgRenderer(QByteArray(payload)) if payload else QSvgRenderer()
 
 
 def _bevel(p: QPainter, rect: QRectF, active=False, warning=False):
@@ -107,7 +122,7 @@ class AssetButton(QPushButton):
         key = name if (BASE/'Buttons'/(name+'.svg')).is_file() else ''
         if key != self._asset_key:
             self._asset_key = key
-            self._asset = _svg_renderer(artwork_path('Buttons',key+'.svg'),remove_text=True) if key else None
+            self._asset = _svg_renderer(artwork_path('Buttons',key+'.svg'),remove_text=True,electric_only=True) if key else None
         return self._asset
 
     def paintEvent(self, event):
@@ -137,6 +152,39 @@ class AssetButton(QPushButton):
             p.drawText(QRectF(left+icon_w+gap,0,text_w+6,self.height()),Qt.AlignmentFlag.AlignVCenter|Qt.AlignmentFlag.AlignLeft,text)
         else:
             p.drawText(rect,Qt.AlignmentFlag.AlignCenter,text)
+        p.end()
+
+
+class TileCloseButton(QPushButton):
+    """Compact but accessible close control for narrow split terminal panes."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(30, 27)
+        self.setToolTip('Détacher le panneau (session tmux conservée)')
+        self.setAccessibleName('Fermer le panneau terminal')
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setStyleSheet('background:transparent;border:0;')
+        self._hover = False
+
+    def enterEvent(self, event):
+        self._hover = True
+        self.update()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self._hover = False
+        self.update()
+        super().leaveEvent(event)
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        rect = QRectF(self.rect()).adjusted(1, 1, -1, -1)
+        _bevel(p, rect, self._hover or self.isDown())
+        p.setPen(QPen(CYAN if self._hover else QColor('#9CEAF4'), 1.8))
+        cx, cy = self.width()/2, self.height()/2
+        p.drawLine(int(cx-5), int(cy-5), int(cx+5), int(cy+5))
+        p.drawLine(int(cx+5), int(cy-5), int(cx-5), int(cy+5))
         p.end()
 
 
