@@ -1,0 +1,10 @@
+Package: nexus-terminal
+Version: 1.0.0-1
+Section: utils
+Priority: optional
+Architecture: all
+Maintainer: NEXUS Development <noreply@localhost>
+Depends: python3 (>= 3.10), python3-venv, python3-pip, tmux, openssh-client, ca-certificates
+Description: NEXUS Terminal 1.0 NeonGlass Session Manager
+ Qt6 multi-console workspace with per-user connection profiles.
+ Python Qt dependencies install to per-user venv on first launch.

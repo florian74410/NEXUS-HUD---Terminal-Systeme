@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=NEXUS Terminal
+GenericName=Neon Terminal & Session Manager
+Comment=ElectroBlueNEON v1.0.0 — sessions SSH/FTP/TCP/HTTP
+Exec=/usr/bin/nexus-terminal
+Icon=nexus-terminal
+Terminal=false
+Categories=System;TerminalEmulator;Network;
+StartupNotify=true
