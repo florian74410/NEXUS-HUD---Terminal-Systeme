@@ -1,5 +1,5 @@
 """Qt pairing assistant. UI approval always runs on the GUI thread."""
-from nexus_skin import AssetButton
+from nexus_nova1_style import NovaOneButton
 import queue
 import threading
 from PySide6.QtCore import QTimer
@@ -27,12 +27,12 @@ class PairingDialog(QDialog):
         self.status=QLabel('Initialisation…');v.addWidget(self.status)
         self.devices=QListWidget();v.addWidget(self.devices)
         row=QHBoxLayout();v.addLayout(row)
-        refresh=AssetButton('Actualiser');refresh.clicked.connect(self.refresh);row.addWidget(refresh)
+        refresh=NovaOneButton('Actualiser');refresh.clicked.connect(self.refresh);row.addWidget(refresh)
         self.ip=QLineEdit();self.ip.setPlaceholderText('IP locale du PC distant (facultatif)');v.addWidget(self.ip)
-        self.connect=AssetButton('Appairer le PC sélectionné');self.connect.clicked.connect(self.connect_peer);v.addWidget(self.connect)
+        self.connect=NovaOneButton('Appairer le PC sélectionné');self.connect.clicked.connect(self.connect_peer);v.addWidget(self.connect)
         v.addWidget(QLabel('Compare le code sur les deux écrans avant de confirmer.'))
         v.addWidget(QLabel('Les clés privées ne sont jamais échangées. SSH serveur doit être activé séparément.'))
-        close=AssetButton('Fermer');close.clicked.connect(self.accept);v.addWidget(close)
+        close=NovaOneButton('Fermer');close.clicked.connect(self.accept);v.addWidget(close)
         self.timer=QTimer(self);self.timer.timeout.connect(self.poll);self.timer.start(250)
         if not enabled():
             self.status.setText('Découverte désactivée : active-la dans Paramètres → Connexions.')
