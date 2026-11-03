@@ -8,24 +8,21 @@ from PySide6.QtGui import QIcon, QFont, QColor, QPainter, QPen, QLinearGradient,
 from PySide6.QtWidgets import (QApplication,QWidget,QMainWindow,QVBoxLayout,QHBoxLayout,
  QGridLayout,QLabel,QPushButton,QComboBox,QMenu,QDialog,QFormLayout,QLineEdit,
  QDialogButtonBox,QMessageBox,QSplitter,QFrame,QPlainTextEdit,QCheckBox,QSpinBox,QSizePolicy,QStyleFactory,QSlider,QInputDialog)
-from PySide6.QtSvg import QSvgRenderer
 from pyside6_qtermwidget import QTermWidget
 from nexus_connections import ConnectionsDialog, SessionDialog, identity, GlassDialog
 from nexus_hover import SmartHover
 from nexus_quick_commands import Registry, expand, validate_name, RESERVED
-from nexus_skin import AssetButton, AssetSurface, ElectricPulseSurface, TileCloseButton, show_notice
+from nexus_nova1_style import NovaOneButton, NeonGlassPanel, NovaOneTerminalFrame, NovaOneCloseButton, show_notice
 
 HERE=Path(__file__).resolve().parent
 ICONS=HERE/'assets'/'icons'
 ACCENT='#13dfff'
-ELECTRIC=HERE/'assets'/'theme_nexus'
-NEW_ASSETS=ELECTRIC
 STYLE="""
 * {font-family:'DejaVu Sans';color:#e3faff;font-size:11px;}
-QWidget#root {background:#030b16;}
-QWidget#stage {background:transparent;border:0;}
+QWidget#root {background:#020b16;}
+QWidget#stage {background:rgba(0,58,88,75);border:1px solid rgba(35,205,248,110);}
 QWidget#splitSurface {background:rgba(0,64,104,72);}
-QWidget#terminalHost {background:rgba(2,10,22,185);border:1px solid #19516b;}
+QWidget#terminalHost {background:#041725;}
 QWidget#root QToolTip {color:#eaffff;background:#06283d;border:1px solid #32cfee;}
 QWidget#root QTabWidget::pane {background:#041b2c;border:1px solid #137b9c;}
 QWidget#root QTabBar::tab {background:#07263b;color:#d9f9ff;padding:6px 10px;}
@@ -37,14 +34,12 @@ QWidget#root QCheckBox,QWidget#root QRadioButton {color:#e8ffff;background:trans
 QWidget#root QMenuBar {background:#061b2a;color:#e8ffff;}
 QWidget#root QMenuBar::item:selected {background:#0b4d68;}
 QWidget#root QLabel {background:transparent;}
-QWidget#root QSplitter {background:rgba(0,28,47,55);}
-QWidget#root QTermWidget {background:rgba(2,10,22,185);}
+QWidget#root QSplitter {background:rgba(0,64,104,72);}
+QWidget#root QTermWidget {background:#161b20;}
 QWidget#root QMenu {background:#061a2b;}
 QLabel#title {font-size:21px;font-weight:750;color:#f1ffff;}
 QLabel#sub {font-size:10px;letter-spacing:2px;color:#8edbea;}
 QLabel#dim {color:#7caebd;}
-QLabel#sessionBadge {color:#85edff;font-family:'DejaVu Sans Mono';font-size:10px;font-weight:700;}
-QWidget#stage QLabel {background:transparent;}
 QPushButton,QComboBox,QSpinBox,QLineEdit {background:#072439;border:1px solid #167c9e;
  border-radius:3px;padding:6px 10px;min-height:22px;}
 QPushButton:hover,QComboBox:hover {border:1px solid #61f1ff;background:#0a3a53;}
@@ -53,21 +48,31 @@ QPushButton#nav {background:transparent;border:0;text-align:left;padding:12px;}
 QPushButton#nav:checked {background:#0b5069;border:1px solid #43e6ff;}
 QPushButton#add {border:0;background:transparent;color:#31eaff;font-size:18px;font-weight:bold;}
 QPushButton#add:hover {color:white;}
-QMenu {background:#061a2b;border:1px solid #22a8c9;padding:5px;}
-QMenu::item {padding:9px 22px;}
-QMenu::item:selected {background:#0a526b;border-left:2px solid #4cedff;}
+QMenu {background:#061a2b;border:1px solid #22a8c9;}
+QMenu::item {padding:7px 16px;}
+QMenu::item:selected {background:#0a526b;}
 QDialog {background:#061725;}
 QPlainTextEdit {background:#031321;border:1px solid #1880a3;}
-QSplitter::handle {background:rgba(0,88,133,95);border:1px solid rgba(50,230,255,85);}
+QSplitter::handle {background:rgba(0,155,207,110);border:1px solid rgba(50,230,255,120);}
 QSplitter::handle:hover {background:rgba(0,213,255,170);}
 QMessageBox {background:#061725;color:#e8ffff;}
 QMessageBox QLabel {color:#e8ffff;background:transparent;}
 QDialog QLabel {color:#e8ffff;background:transparent;}
+
+/* NOVA 1.0 restored, extra contrast and UX styles */
+QWidget#root QFrame#novaOneGlass {background:transparent;border:0;}
+QWidget#root QTermWidget {background:#041725;}
+QLabel#sessionBadge {font-family:'DejaVu Sans Mono';font-weight:700;font-size:10px;color:#8ff2ff;}
+QWidget#stage QLabel {background:transparent;}
+QDialogButtonBox QPushButton {min-width:74px;}
+QMenu::separator {height:1px;background:#126989;margin:5px 8px;}
+QSlider::groove:horizontal {height:4px;background:#10384b;border:1px solid #216c85;}
+QSlider::handle:horizontal {width:12px;margin:-6px 0;background:#32dcfa;border:1px solid #a4f7ff;border-radius:4px;}
 """
 def icon(name):
     return QIcon(str(ICONS/(name+'.svg')))
 def button(text,callback,ico=None,name=None):
-    b=AssetButton(text)
+    b=NovaOneButton(text)
     if ico:
         alternative=ICONS/('hud_'+({'activity':'network','apps':'grid','code':'terminal'}.get(ico,ico))+'.svg')
         b.setIcon(QIcon(str(alternative)) if alternative.is_file() else icon(ico))
@@ -97,31 +102,34 @@ class Frame(QFrame):
         p.end()
 
 class HexWindowButton(QPushButton):
-    """Animated cyan hexagonal controls; no error-red for window controls."""
+    """Original NOVA 1.0 hex geometry, cyan actions per N3XV5 palette."""
     def __init__(self,kind,parent=None):
-        super().__init__(parent);self.kind=kind;self._glow=0.0
-        self.setFixedSize(37,35);self.setCursor(Qt.CursorShape.PointingHandCursor)
+        super().__init__(parent)
+        self.kind=kind
+        self.setFixedSize(37,35)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setToolTip({'min':'Minimiser','max':'Maximiser / Restaurer','close':'Fermer'}[kind])
         self.setStyleSheet('background:transparent;border:0;padding:0;')
-        self.anim=QVariantAnimation(self)
-        self.anim.setDuration(260);self.anim.setEasingCurve(QEasingCurve.Type.InOutCubic)
-        self.anim.valueChanged.connect(self._set_glow)
-    def _set_glow(self,v):self._glow=float(v);self.update()
-    def _animate(self,to):
-        self.anim.stop();self.anim.setStartValue(self._glow);self.anim.setEndValue(to);self.anim.start()
-    def enterEvent(self,e):self._animate(1.0);super().enterEvent(e)
-    def leaveEvent(self,e):self._animate(0.0);super().leaveEvent(e)
+        self._hover=False
+    def enterEvent(self,event):
+        self._hover=True;self.update();super().enterEvent(event)
+    def leaveEvent(self,event):
+        self._hover=False;self.update();super().leaveEvent(event)
     def paintEvent(self,event):
         from PySide6.QtCore import QPointF
         p=QPainter(self);p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        poly=QPolygonF([QPointF(9,2),QPointF(28,2),QPointF(35,17),QPointF(28,32),QPointF(9,32),QPointF(2,17)])
-        glow=self._glow
-        p.setPen(QPen(QColor(0,220,255,int(40+110*glow)),3.5+glow*2));p.setBrush(QColor(2,31,48,int(200+35*glow)));p.drawPolygon(poly)
-        p.setPen(QPen(QColor(75,228,255,int(190+65*glow)),1.4+glow*.7));p.drawPolygon(poly)
-        p.setPen(QPen(QColor('#a2f7ff'),2.0))
-        if self.kind=='min':p.drawLine(13,20,24,20)
-        elif self.kind=='max':p.drawRect(13,12,11,10)
-        else:p.drawLine(14,12,23,22);p.drawLine(23,12,14,22)
+        poly=QPolygonF([QPointF(9,2),QPointF(28,2),QPointF(35,17),
+                        QPointF(28,32),QPointF(9,32),QPointF(2,17)])
+        p.setPen(QPen(QColor('#69f5ff' if self._hover else '#159cbe'),1.5))
+        p.setBrush(QColor('#10506c' if self._hover else '#061929'))
+        p.drawPolygon(poly)
+        p.setPen(QPen(QColor('#a6fcff' if self._hover else '#51cfe8'),2.2))
+        if self.kind=='min':
+            p.drawLine(13,20,24,20)
+        elif self.kind=='max':
+            p.drawRect(13,12,11,10)
+        else:
+            p.drawLine(14,12,23,22);p.drawLine(23,12,14,22)
         p.end()
 
 class HeaderCircuit(Frame):
@@ -199,33 +207,33 @@ class Terminal(QTermWidget):
         # Insert only; Enter remains the user's decision.
         self.sendText(command)
 
-class TerminalTile(ElectricPulseSurface):
+class TerminalTile(NovaOneTerminalFrame):
     closed=Signal()
     def __init__(self,session_name,command,remote=False,parent=None):
         super().__init__(parent)
         self.session_name=session_name
         self.remote=remote
-        v=QVBoxLayout(self);v.setContentsMargins(34,35,34,25);v.setSpacing(3)
+        v=QVBoxLayout(self);v.setContentsMargins(9,9,9,8);v.setSpacing(4)
         self._tile_layout=v
         h=QHBoxLayout()
         status_label=QLabel('●  '+('SSH / '+session_name if remote else 'LOCAL / '+session_name))
         status_label.setObjectName('sessionBadge');h.addWidget(status_label)
         h.addStretch()
-        close_button=TileCloseButton(self)
+        close_button=NovaOneCloseButton(self)
         close_button.clicked.connect(self.closed.emit)
         h.addWidget(close_button)
         v.addLayout(h)
         self.terminal=Terminal(command,self,session_name=None if remote else session_name)
         self.terminal.setMinimumSize(80,65)
-        self.setMinimumSize(180,148)
+        self.setMinimumSize(142,112)
         v.addWidget(self.terminal,1)
     def resizeEvent(self,event):
         super().resizeEvent(event)
         # Keep the frame's beveled SVG visible while maximising usable PTY space.
         if self.width()<340 or self.height()<240:
-            self._tile_layout.setContentsMargins(22,26,22,18)
+            self._tile_layout.setContentsMargins(6,7,6,6)
         else:
-            self._tile_layout.setContentsMargins(33,34,33,24)
+            self._tile_layout.setContentsMargins(9,9,9,8)
 
 class EmptyTile(Frame):
     requested=Signal()
@@ -283,7 +291,7 @@ class SettingsHub(GlassDialog):
         tabs=QTabWidget(self);self.body.addWidget(tabs,1)
         connection=QWidget();cl=QVBoxLayout(connection)
         cl.addWidget(QLabel('Connexions SSH / FTP / TCP / HTTP'))
-        b=AssetButton('Connexions SSH');b.clicked.connect(lambda:ConnectionsDialog(self).exec());cl.addWidget(b);cl.addStretch()
+        b=NovaOneButton('Connexions SSH');b.clicked.connect(lambda:ConnectionsDialog(self).exec());cl.addWidget(b);cl.addStretch()
         from PySide6.QtWidgets import QCheckBox
         from nexus_pairing import enabled,set_enabled
         pair=QCheckBox('Autoriser la découverte N3XV5 sur le réseau local')
@@ -294,8 +302,8 @@ class SettingsHub(GlassDialog):
         cl.addWidget(QLabel('Appairage : SSH ▾ → Appareils du réseau. Confirmation obligatoire sur les deux PC.'))
         tabs.addTab(connection,'Connexions')
         appearance=QWidget();ap=QVBoxLayout(appearance)
-        ap.addWidget(QLabel('ELECTRIC CARBON  /  EFFETS VISUELS'))
-        animation=QCheckBox('Animations électriques discrètes (panneau principal et terminal actif)')
+        ap.addWidget(QLabel('NOVA 1.0 NEONGLASS  /  EFFETS VISUELS'))
+        animation=QCheckBox('Reflets électriques discrets (terminal actif seulement)')
         animation.setChecked(parent.animations_enabled)
         animation.toggled.connect(parent.set_animations_enabled)
         ap.addWidget(animation)
@@ -315,11 +323,11 @@ class SettingsHub(GlassDialog):
         ul.addWidget(QLabel('Les mises à jour demandent confirmation et sont installées via apt.'))
         self.result=QPlainTextEdit();self.result.setReadOnly(True);self.result.setMaximumHeight(155)
         ul.addWidget(self.result)
-        local=AssetButton('Importer .deb…');local.clicked.connect(self.local_update);ul.addWidget(local)
-        check=AssetButton('Rechercher sur le serveur');check.clicked.connect(self.server_check);ul.addWidget(check)
-        update=AssetButton('Installer la mise à jour serveur…');update.clicked.connect(self.server_update);ul.addWidget(update)
+        local=NovaOneButton('Importer .deb…');local.clicked.connect(self.local_update);ul.addWidget(local)
+        check=NovaOneButton('Rechercher sur le serveur');check.clicked.connect(self.server_check);ul.addWidget(check)
+        update=NovaOneButton('Installer la mise à jour serveur…');update.clicked.connect(self.server_update);ul.addWidget(update)
         ul.addStretch();tabs.addTab(updates,'Mise à jour')
-        close=AssetButton('Fermer');close.clicked.connect(self.accept);self.body.addWidget(close)
+        close=NovaOneButton('Fermer');close.clicked.connect(self.accept);self.body.addWidget(close)
     def cli(self,*args):
         import sys
         return [sys.executable,str(HERE/'nexus_updater.py'),*args]
@@ -369,15 +377,15 @@ class Workspace(QWidget):
         hh=QHBoxLayout(self.header);hh.setContentsMargins(16,8,15,8)
         logo=QLabel();logo.setPixmap(icon('nexus').pixmap(QSize(49,49)));hh.addWidget(logo)
         titlecol=QVBoxLayout()
-        self.title_label=self.label('N3XV5  //  TERMINAL HUD','title')
-        self.subtitle_label=self.label('MULTI-TERMINAL  /  REMOTE  /  SCRIPTS  /  AUTOMATION','sub')
+        self.title_label=self.label('N3XV5 Terminal — NOVA 1.0','title')
+        self.subtitle_label=self.label('M U L T I - T E R M I N A L   /   S S H   /   S C R I P T S','sub')
         titlecol.addWidget(self.title_label);titlecol.addWidget(self.subtitle_label)
         hh.addLayout(titlecol);hh.addStretch()
         self.status=self.label('SESSIONS : 0','dim');hh.addWidget(self.status)
         self.online_label=self.label('●  LOCAL / READY','dim');hh.addWidget(self.online_label)
         # Actual QMovie (not unsupported SVG-CSS animation), only one subtle moving signal.
         self.signal_label=QLabel();self.signal_label.setFixedSize(65,25)
-        self.signal_movie=QMovie(str(ELECTRIC/'ElectroBlueNEON_pcb_signal.gif'))
+        self.signal_movie=QMovie(str(HERE/'assets'/'animations'/'ElectroBlueNEON_pcb_signal.gif'))
         if self.signal_movie.isValid():
             self.signal_movie.setScaledSize(QSize(65,25))
             self.signal_label.setMovie(self.signal_movie)
@@ -409,14 +417,14 @@ class Workspace(QWidget):
         self.outer.addLayout(bar)
         body=QHBoxLayout();body.setSpacing(5);self.outer.addLayout(body,1)
         # Reserved blank left column: no duplicate or placeholder controls.
-        self.nav=AssetSurface(category='Boxes',name='Performance_Tall.svg');self.nav.setFixedWidth(148)
+        self.nav=NeonGlassPanel(accent='#0fa8d0',cut=12);self.nav.setFixedWidth(148)
         self.nav.setToolTip('')
         body.addWidget(self.nav)
-        self.stage=AssetSurface(category='Windows',name='Console.svg',animated=self.animations_enabled);self.stage.setObjectName('stage')
-        # No auto-fill: would cover the translucent SVG artwork with a flat background.
+        self.stage=NeonGlassPanel(accent='#0ea8d4',cut=16);self.stage.setObjectName('stage')
+        # Draw bevel/glass natively; keep user-supplied SVG assets optional, not forced.
         self.stage.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Expanding)
         self.stage_layout=QVBoxLayout(self.stage)
-        self.stage_layout.setContentsMargins(16,22,16,18);body.addWidget(self.stage,1)
+        self.stage_layout.setContentsMargins(9,10,9,9);body.addWidget(self.stage,1)
         self.rebuild()
         QTimer.singleShot(0,self.apply_responsive)
     def resizeEvent(self,event):
@@ -427,7 +435,7 @@ class Workspace(QWidget):
         self.nav.setVisible(w>=1020)
         self.subtitle_label.setVisible(w>=1040)
         self.online_label.setVisible(w>=1160)
-        self.title_label.setText('N3XV5 Terminal' if w<790 else 'N3XV5  //  TERMINAL HUD')
+        self.title_label.setText('N3XV5 Terminal' if w<790 else 'N3XV5 Terminal — NOVA 1.0')
     @staticmethod
     def label(text,name=None):
         l=QLabel(text)
@@ -494,7 +502,7 @@ class Workspace(QWidget):
         if mode!='quad' and self.tiles[3] is not None:
             QMessageBox.information(self,'Disposition','Ferme ou déplace le quatrième terminal avant de passer à trois panneaux.')
             return
-        self.mode=mode;self.stage.set_artwork('Windows','Console.svg' if mode=='quad' else 'SplitView.svg');self.rebuild();self.event.emit('terminal.layout.changed',{'layout':mode})
+        self.mode=mode;self.rebuild();self.event.emit('terminal.layout.changed',{'layout':mode})
     def add_session(self,index=None):
         if not shutil.which('tmux'):
             show_notice(self,'TMUX ABSENT','Installe tmux : sudo apt install tmux','Warning')
@@ -572,7 +580,9 @@ class Workspace(QWidget):
         tile.terminal.installEventFilter(self)
         self.active_tile=tile
         for other in self.tiles:
-            if other:other.set_active(self.animations_enabled and other is tile)
+            if other:
+                other.set_animated(self.animations_enabled)
+                other.set_active(other is tile)
     def eventFilter(self,obj,event):
         from PySide6.QtCore import QEvent
         if event.type()==QEvent.Type.FocusIn:
@@ -580,7 +590,7 @@ class Workspace(QWidget):
                 if tile and tile.terminal is obj:
                     self.active_tile=tile
                     for other in self.tiles:
-                        if other:other.set_active(self.animations_enabled and other is tile)
+                        if other:other.set_active(other is tile)
                     break
         return super().eventFilter(obj,event)
     def _target(self):
@@ -664,7 +674,7 @@ class Workspace(QWidget):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('N3XV5 Terminal HUD — NEXUS Electric Pulse v1.4.2')
+        self.setWindowTitle('N3XV5 Terminal HUD — NOVA 1.0 NeonGlass v1.4.3')
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
         self.resize(1250,760);self.setMinimumSize(710,490)
         self.workspace=Workspace()
