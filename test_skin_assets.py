@@ -9,7 +9,7 @@ ASSETS=ROOT/'assets'/'theme_nexus'
 class SkinContractTests(unittest.TestCase):
     def test_per_terminal_electric_pulse(self):
         src=(ROOT/'nexus_workspace.py').read_text()
-        self.assertIn('class TerminalTile(ElectricPulseSurface):',src)
+        self.assertIn('class TerminalTile(NovaOneTerminalFrame):',src)
         self.assertTrue((ASSETS/'Boxes/Electric_Pulse_Original.svg').is_file())
         ET.parse(ASSETS/'Boxes/Electric_Pulse_Original.svg')
     def test_curated_assets(self):
