@@ -13,7 +13,7 @@ from pyside6_qtermwidget import QTermWidget
 from nexus_connections import ConnectionsDialog, SessionDialog, identity, GlassDialog
 from nexus_hover import SmartHover
 from nexus_quick_commands import Registry, expand, validate_name, RESERVED
-from nexus_skin import AssetButton, AssetSurface, ElectricPulseSurface, show_notice
+from nexus_skin import AssetButton, AssetSurface, ElectricPulseSurface, TileCloseButton, show_notice
 
 HERE=Path(__file__).resolve().parent
 ICONS=HERE/'assets'/'icons'
@@ -211,7 +211,9 @@ class TerminalTile(ElectricPulseSurface):
         status_label=QLabel('●  '+('SSH / '+session_name if remote else 'LOCAL / '+session_name))
         status_label.setObjectName('sessionBadge');h.addWidget(status_label)
         h.addStretch()
-        h.addWidget(button('×',lambda:self.closed.emit()))
+        close_button=TileCloseButton(self)
+        close_button.clicked.connect(self.closed.emit)
+        h.addWidget(close_button)
         v.addLayout(h)
         self.terminal=Terminal(command,self,session_name=None if remote else session_name)
         self.terminal.setMinimumSize(80,65)
@@ -271,7 +273,7 @@ def local_cmd(name):
     return 'tmux new-session -A -s '+shlex.quote(name)
 def remote_cmd(name,host):
     # SSH performs its own host key verification. No StrictHostKeyChecking=no.
-    return 'ssh -t '+shlex.quote(host)+' '+shlex.quote('tmux attach-session -t '+shlex.quote(name))
+    return 'ssh -t '+shlex.quote(host)+' '+shlex.quote('tmux new-session -A -s '+shlex.quote(name))
 
 class SettingsHub(GlassDialog):
     def __init__(self,parent):
@@ -398,7 +400,7 @@ class Workspace(QWidget):
         self.ssh_btn=button('SSH ▾',self.show_ssh_menu,'activity');bar.addWidget(self.ssh_btn)
         bar.addWidget(button('Paramètres',self.show_settings,'settings'))
         self.scripts_btn=button('Scripts ▾',self.show_scripts,'code');bar.addWidget(self.scripts_btn)
-        bar.addWidget(button('Affichage ▾',self.show_display,'settings'))
+        self.display_btn=button('Affichage ▾',self.show_display,'settings');bar.addWidget(self.display_btn)
         bar.addStretch()
         bar.addWidget(button('+ Terminal',self.add_session,'terminal'))
         from nexus_pairing import PairingService
@@ -658,11 +660,11 @@ class Workspace(QWidget):
             action.setCheckable(True);action.setChecked(value==self.terminal_opacity)
             action.triggered.connect(lambda checked=False,v=value:self.set_terminal_opacity(v))
         m.addAction('Sans grille — espace libre').setEnabled(False)
-        m.exec(self.mapToGlobal(self.rect().center()))
+        m.exec(self.display_btn.mapToGlobal(self.display_btn.rect().bottomLeft()))
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('N3XV5 Terminal HUD — NEXUS Electric Pulse v1.4.1')
+        self.setWindowTitle('N3XV5 Terminal HUD — NEXUS Electric Pulse v1.4.2')
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
         self.resize(1250,760);self.setMinimumSize(710,490)
         self.workspace=Workspace()
