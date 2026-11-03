@@ -32,7 +32,7 @@ Le texte des commandes reste du vrai texte Qt; pas de labels SVG impossibles à 
 Les GIF peuvent être désactivés dans Paramètres → Apparence.
 
 ## Dépendances / lancement Linux Mint XFCE
-`PySide6>=6.7,<7`, `pyside6_qtermwidget`, `tmux`, `openssh-client` et les wheels adaptées à la version Python sont nécessaires. 
+`PySide6==6.11.2`, `pyside6_qtermwidget`, `tmux`, `openssh-client` et les wheels adaptées à la version Python sont nécessaires. 
 Ne pas lancer pip sur chaque démarrage. Avec wheels présentes dans `Dependency/wheels/` :
 
 ```bash
@@ -40,7 +40,7 @@ bash setup-dependency.sh
 bash start-nexus.sh
 ```
 
-Les wheels ne sont pas redistribuées. L'installateur depuis une machine sans Internet ne les téléchargera pas.
+Les wheels ne sont pas redistribuées. `setup-dependency.sh` cherche d’abord les wheels locales, puis télécharge celles qui manquent dans `Dependency/wheels/` (connexion Internet requise). `bash setup-dependency.sh --offline` interdit tout téléchargement. Aucun pip au démarrage de l’application.
 
 ## Validation & limites
 - Unit tests + parse AST + `bash -n` + validation SVG sont effectués dans le conteneur.
