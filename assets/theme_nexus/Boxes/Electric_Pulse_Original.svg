@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="960" height="550" viewBox="0 0 960 550" role="img" aria-label="N3XV5 Electric Pulse animated HUD container">
+<defs>
+ <linearGradient id="carbon" x2="1" y2="1"><stop stop-color="#0a1423" stop-opacity=".82"/><stop offset=".55" stop-color="#030711" stop-opacity=".70"/><stop offset="1" stop-color="#10213b" stop-opacity=".78"/></linearGradient>
+ <linearGradient id="edge"><stop stop-color="#0454dc"/><stop offset=".35" stop-color="#00d9ff"/><stop offset=".65" stop-color="#2767ff"/><stop offset="1" stop-color="#00baff"/></linearGradient>
+ <pattern id="weave" width="9" height="9" patternUnits="userSpaceOnUse"><path d="M0 0L9 9M-4 5L4 13" stroke="#6aa2e2" stroke-width=".5" opacity=".11"/></pattern>
+ <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#1680d9" stroke-width=".6" opacity=".13"/></pattern>
+ <filter id="glow" x="-70%" y="-70%" width="240%" height="240%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+ <filter id="soft"><feGaussianBlur stdDeviation="12"/></filter>
+ <clipPath id="bodyClip"><path d="M84 110H864L910 153V433L863 476H91L49 432V151Z"/></clipPath>
+ <style>
+ .pulse{stroke-dasharray:28 220;animation:travel 3.4s linear infinite}.pulse2{stroke-dasharray:12 165;animation:travel 2.1s linear infinite reverse}.scan{animation:scan 4.2s ease-in-out infinite}.blink{animation:blink 2.5s ease-in-out infinite}.red{animation:red 5.8s steps(1) infinite}.float{animation:float 5s ease-in-out infinite}.bars rect{transform-box:fill-box;transform-origin:center bottom;animation:bar 1.4s ease-in-out infinite alternate}.bars rect:nth-child(2n){animation-delay:-.5s}.bars rect:nth-child(3n){animation-delay:-1s}
+ @keyframes travel{to{stroke-dashoffset:-496}}@keyframes scan{0%,100%{transform:translateY(0);opacity:.05}50%{transform:translateY(325px);opacity:.32}}@keyframes blink{0%,100%{opacity:.35}50%{opacity:1}}@keyframes red{0%,88%,100%{opacity:.9}89%,91%{opacity:.15}92%,94%{opacity:1}}@keyframes float{50%{transform:translateY(-3px)}}@keyframes bar{to{transform:scaleY(.35)}}
+ @media (prefers-reduced-motion:reduce){*{animation:none!important}}
+ </style>
+</defs>
+<!-- Entire outside area transparent -->
+<g class="float">
+ <path d="M84 110H864L910 153V433L863 476H91L49 432V151Z" fill="url(#carbon)" stroke="#173d75" stroke-width="7"/>
+ <g clip-path="url(#bodyClip)"><rect x="45" y="106" width="870" height="375" fill="url(#weave)"/><rect x="45" y="106" width="870" height="375" fill="url(#grid)"/>
+ <path class="scan" d="M65 128H892V133H65Z" fill="#00cfff" filter="url(#soft)"/>
+ <path d="M85 190H875M85 388H875" stroke="#1472c9" stroke-width="1" opacity=".18"/>
+ </g>
+ <path d="M84 110H864L910 153V433L863 476H91L49 432V151Z" fill="none" stroke="url(#edge)" stroke-width="3"/>
+ <path d="M84 110H864L910 153V433L863 476H91L49 432V151Z" fill="none" stroke="#08e8ff" stroke-width="4" class="pulse" filter="url(#glow)"/>
+ <path d="M84 110H864L910 153V433L863 476H91L49 432V151Z" fill="none" stroke="#73eaff" stroke-width="2" class="pulse2"/>
+ <!-- layered carbon top rail -->
+ <path d="M90 90H350L376 104H585L613 90H858L889 117H71Z" fill="#050b15" stroke="#1b61ae" stroke-width="3"/>
+ <path d="M110 96H327M637 96H850" stroke="#00cfff" stroke-width="4" class="blink" filter="url(#glow)"/>
+ <path d="M118 105h100m-80 8h64M742 105h97" stroke="#174d99" stroke-width="2"/>
+ <!-- corners -->
+ <g fill="none" stroke="#69dcff" stroke-width="6" filter="url(#glow)"><path d="M64 184V155L96 123H162"/><path d="M800 123H854L895 162V198"/><path d="M64 386V427L101 461H162"/><path d="M795 461H857L895 423V387"/></g>
+ <!-- red only sharp straight segments -->
+ <g class="red" fill="none" stroke="#ff2346" stroke-width="5" filter="url(#glow)"><path d="M777 106H846L876 133"/><path d="M74 398V426L102 453H159"/><path d="M733 463H839"/></g>
+ <path d="M103 137H858L879 157V426L854 448H106L80 423V158Z" fill="none" stroke="#256bb4" stroke-width="1" opacity=".55"/>
+ <!-- center docking not actual content -->
+ <path d="M360 112H600L582 134H379Z" fill="#071a32" stroke="#148ad2" stroke-width="2"/>
+ <path d="M421 122H540" stroke="#00ddff" stroke-width="3" class="blink"/>
+ <g class="bars" fill="#00cfff" opacity=".85"><rect x="122" y="144" width="7" height="19"/><rect x="134" y="139" width="7" height="24"/><rect x="146" y="148" width="7" height="15"/><rect x="158" y="135" width="7" height="28"/><rect x="170" y="145" width="7" height="18"/></g>
+ <g stroke="#04cfff" fill="none" stroke-width="2" opacity=".75"><path d="M723 150h60l13-12h44"/><circle cx="723" cy="150" r="4" fill="#04cfff"/><path d="M123 432h86l16-13h40"/><circle cx="265" cy="419" r="3" fill="#04cfff"/></g>
+ <g fill="#00dfff" class="blink"><circle cx="91" cy="281" r="3"/><circle cx="870" cy="281" r="3"/><circle cx="480" cy="461" r="3"/></g>
+ <!-- top header exterior -->
+ <path d="M115 57H325L347 77H613L635 57H842" stroke="#0059be" stroke-width="3" fill="none"/>
+ <path d="M115 57H325" stroke="#00dfff" stroke-width="3" class="pulse" filter="url(#glow)"/>
+ <path d="M115 68h83m572 0h71" stroke="#ff2645" stroke-width="2" opacity=".75"/>
+</g>
+</svg>

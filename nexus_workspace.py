@@ -3,13 +3,16 @@
 from __future__ import annotations
 import os, re, shlex, shutil, socket, subprocess, uuid
 from pathlib import Path
-from PySide6.QtCore import Qt, QSize, QTimer, Signal, QPoint
-from PySide6.QtGui import QIcon, QFont, QColor, QPainter, QPen, QLinearGradient, QPolygonF
+from PySide6.QtCore import Qt, QSize, QTimer, Signal, QPoint, QRectF, QVariantAnimation, QEasingCurve, QSettings
+from PySide6.QtGui import QIcon, QFont, QColor, QPainter, QPen, QLinearGradient, QPolygonF, QPixmap, QMovie
 from PySide6.QtWidgets import (QApplication,QWidget,QMainWindow,QVBoxLayout,QHBoxLayout,
  QGridLayout,QLabel,QPushButton,QComboBox,QMenu,QDialog,QFormLayout,QLineEdit,
- QDialogButtonBox,QMessageBox,QSplitter,QFrame,QPlainTextEdit,QCheckBox,QSpinBox,QSizePolicy,QStyleFactory)
+ QDialogButtonBox,QMessageBox,QSplitter,QFrame,QPlainTextEdit,QCheckBox,QSpinBox,QSizePolicy,QStyleFactory,QSlider,QInputDialog)
 from pyside6_qtermwidget import QTermWidget
-from nexus_connections import ConnectionsDialog, SessionDialog, identity
+from nexus_connections import ConnectionsDialog, SessionDialog, identity, GlassDialog
+from nexus_hover import SmartHover
+from nexus_quick_commands import Registry, expand, validate_name, RESERVED
+from nexus_nova1_style import NovaOneButton, NeonGlassPanel, NovaOneTerminalFrame, NovaOneCloseButton, show_notice
 
 HERE=Path(__file__).resolve().parent
 ICONS=HERE/'assets'/'icons'
@@ -55,12 +58,25 @@ QSplitter::handle:hover {background:rgba(0,213,255,170);}
 QMessageBox {background:#061725;color:#e8ffff;}
 QMessageBox QLabel {color:#e8ffff;background:transparent;}
 QDialog QLabel {color:#e8ffff;background:transparent;}
+
+/* NOVA 1.0 restored, extra contrast and UX styles */
+QWidget#root QFrame#novaOneGlass {background:transparent;border:0;}
+QWidget#root QTermWidget {background:#041725;}
+QLabel#sessionBadge {font-family:'DejaVu Sans Mono';font-weight:700;font-size:10px;color:#8ff2ff;}
+QWidget#stage QLabel {background:transparent;}
+QDialogButtonBox QPushButton {min-width:74px;}
+QMenu::separator {height:1px;background:#126989;margin:5px 8px;}
+QSlider::groove:horizontal {height:4px;background:#10384b;border:1px solid #216c85;}
+QSlider::handle:horizontal {width:12px;margin:-6px 0;background:#32dcfa;border:1px solid #a4f7ff;border-radius:4px;}
 """
 def icon(name):
     return QIcon(str(ICONS/(name+'.svg')))
 def button(text,callback,ico=None,name=None):
-    b=QPushButton(text)
-    if ico:b.setIcon(icon(ico));b.setIconSize(QSize(20,20))
+    b=NovaOneButton(text)
+    if ico:
+        alternative=ICONS/('hud_'+({'activity':'network','apps':'grid','code':'terminal'}.get(ico,ico))+'.svg')
+        b.setIcon(QIcon(str(alternative)) if alternative.is_file() else icon(ico))
+        b.setIconSize(QSize(18,18))
     if name:b.setObjectName(name)
     b.clicked.connect(callback)
     return b
@@ -86,7 +102,7 @@ class Frame(QFrame):
         p.end()
 
 class HexWindowButton(QPushButton):
-    """Painted hexagonal window control: no stock titlebar icons."""
+    """Original NOVA 1.0 hex geometry, cyan actions per N3XV5 palette."""
     def __init__(self,kind,parent=None):
         super().__init__(parent)
         self.kind=kind
@@ -104,10 +120,10 @@ class HexWindowButton(QPushButton):
         p=QPainter(self);p.setRenderHint(QPainter.RenderHint.Antialiasing)
         poly=QPolygonF([QPointF(9,2),QPointF(28,2),QPointF(35,17),
                         QPointF(28,32),QPointF(9,32),QPointF(2,17)])
-        p.setPen(QPen(QColor('#ff747a' if self._hover else '#bb3746'),1.5))
-        p.setBrush(QColor('#51202b' if self._hover else '#140d1a'))
+        p.setPen(QPen(QColor('#69f5ff' if self._hover else '#159cbe'),1.5))
+        p.setBrush(QColor('#10506c' if self._hover else '#061929'))
         p.drawPolygon(poly)
-        p.setPen(QPen(QColor('#ff858b' if self._hover else '#f04b5c'),2.2))
+        p.setPen(QPen(QColor('#a6fcff' if self._hover else '#51cfe8'),2.2))
         if self.kind=='min':
             p.drawLine(13,20,24,20)
         elif self.kind=='max':
@@ -143,33 +159,81 @@ class HeaderCircuit(Frame):
 
 class Terminal(QTermWidget):
     """Real QTermWidget PTY, with tmux for durable shared screen and SSH attach."""
-    def __init__(self,command,parent=None):
+    def apply_opacity(self,percent):
+        # QTermWidget has its own paint surface; stylesheet alone cannot guarantee alpha.
+        # setTerminalOpacity is available in some bindings, fall back to palette.
+        value=max(0.35,min(1.0,percent/100.0))
+        if callable(getattr(self,"setTerminalOpacity",None)):
+            self.setTerminalOpacity(value)
+        else:
+            from PySide6.QtGui import QPalette
+            pal=self.palette();pal.setColor(QPalette.ColorRole.Base,QColor(3,17,29,int(255*value)));self.setPalette(pal)
+    def __init__(self,command,parent=None,session_name=None):
         super().__init__(0,parent)
         self.setTerminalFont(QFont('DejaVu Sans Mono',10))
         self.setObjectName('terminalHost')
         self.setHistorySize(8000)
         self.setTerminalSizeHint(False)
         self.setColorScheme('DarkPastels')
+        self.apply_opacity(82)
         self.setShellProgram('/bin/bash')
         self.startShellProgram()
+        self.smart_hover=SmartHover(self,session_name=session_name)
+        self.quick_registry=None
+        self._quick_prefix=""
         QTimer.singleShot(350,lambda:self.sendText(command+'\n'))
 
-class TerminalTile(Frame):
+    def keyPressEvent(self,event):
+        # Explicit predictive palette: never intercept normal shell completion / Tab.
+        if event.key()==Qt.Key.Key_Space and event.modifiers() & Qt.KeyboardModifier.ControlModifier and self.quick_registry:
+            prefix=self._quick_prefix[-60:]
+            options=self.quick_registry.suggestions(prefix)
+            menu=QMenu(self)
+            if not options:menu.addAction('Aucune commande enregistrée').setEnabled(False)
+            for item in options:
+                action=menu.addAction(item['category']+' / '+item['name'])
+                action.triggered.connect(lambda checked=False,c=item:self._insert_quick(c))
+            menu.exec(self.mapToGlobal(self.rect().center()))
+            return
+        if event.key() in (Qt.Key.Key_Return,Qt.Key.Key_Enter):self._quick_prefix=''
+        elif event.key()==Qt.Key.Key_Backspace:self._quick_prefix=self._quick_prefix[:-1]
+        elif event.text() and event.text().isprintable() and not event.modifiers() & (Qt.KeyboardModifier.ControlModifier|Qt.KeyboardModifier.AltModifier):
+            self._quick_prefix=(self._quick_prefix+event.text())[-60:]
+        super().keyPressEvent(event)
+    def _insert_quick(self,item):
+        try:command=expand(item['command'],self.quick_registry.variables)
+        except ValueError as exc:
+            QMessageBox.warning(self,'Variable manquante',str(exc));return
+        # Insert only; Enter remains the user's decision.
+        self.sendText(command)
+
+class TerminalTile(NovaOneTerminalFrame):
     closed=Signal()
     def __init__(self,session_name,command,remote=False,parent=None):
         super().__init__(parent)
         self.session_name=session_name
         self.remote=remote
-        v=QVBoxLayout(self);v.setContentsMargins(9,9,9,8);v.setSpacing(5)
+        v=QVBoxLayout(self);v.setContentsMargins(9,9,9,8);v.setSpacing(4)
+        self._tile_layout=v
         h=QHBoxLayout()
-        h.addWidget(QLabel('●  '+('SSH / '+session_name if remote else 'Bash / '+session_name)))
+        status_label=QLabel('●  '+('SSH / '+session_name if remote else 'LOCAL / '+session_name))
+        status_label.setObjectName('sessionBadge');h.addWidget(status_label)
         h.addStretch()
-        h.addWidget(button('×',lambda:self.closed.emit()))
+        close_button=NovaOneCloseButton(self)
+        close_button.clicked.connect(self.closed.emit)
+        h.addWidget(close_button)
         v.addLayout(h)
-        self.terminal=Terminal(command,self)
-        self.terminal.setMinimumSize(80,70)
-        self.setMinimumSize(140,110)
+        self.terminal=Terminal(command,self,session_name=None if remote else session_name)
+        self.terminal.setMinimumSize(80,65)
+        self.setMinimumSize(142,112)
         v.addWidget(self.terminal,1)
+    def resizeEvent(self,event):
+        super().resizeEvent(event)
+        # Keep the frame's beveled SVG visible while maximising usable PTY space.
+        if self.width()<340 or self.height()<240:
+            self._tile_layout.setContentsMargins(6,7,6,6)
+        else:
+            self._tile_layout.setContentsMargins(9,9,9,8)
 
 class EmptyTile(Frame):
     requested=Signal()
@@ -188,10 +252,11 @@ class EmptyTile(Frame):
         t.setStyleSheet('color:#19cce9;font-weight:bold;letter-spacing:1px;')
         v.addWidget(t);v.addStretch()
 
-class ConnectDialog(QDialog):
+class ConnectDialog(GlassDialog):
     def __init__(self,parent=None):
-        super().__init__(parent);self.setWindowTitle('NEXUS — Nouvelle session')
-        v=QVBoxLayout(self);f=QFormLayout();v.addLayout(f)
+        super().__init__(parent,'NEXUS — Nouvelle session')
+        self.setMinimumSize(600,480)
+        v=self.body;f=QFormLayout();v.addLayout(f)
         self.mode=QComboBox();self.mode.addItems(['Terminal local partageable','Terminal distant via SSH'])
         f.addRow('Type',self.mode)
         self.name=QLineEdit('nexus-'+uuid.uuid4().hex[:6]);f.addRow('Session tmux',self.name)
@@ -216,7 +281,81 @@ def local_cmd(name):
     return 'tmux new-session -A -s '+shlex.quote(name)
 def remote_cmd(name,host):
     # SSH performs its own host key verification. No StrictHostKeyChecking=no.
-    return 'ssh -t '+shlex.quote(host)+' '+shlex.quote('tmux attach-session -t '+shlex.quote(name))
+    return 'ssh -t '+shlex.quote(host)+' '+shlex.quote('tmux new-session -A -s '+shlex.quote(name))
+
+class SettingsHub(GlassDialog):
+    def __init__(self,parent):
+        super().__init__(parent,'PARAMÈTRES NEXUS')
+        self.setMinimumSize(660,480)
+        from PySide6.QtWidgets import QTabWidget,QFileDialog
+        tabs=QTabWidget(self);self.body.addWidget(tabs,1)
+        connection=QWidget();cl=QVBoxLayout(connection)
+        cl.addWidget(QLabel('Connexions SSH / FTP / TCP / HTTP'))
+        b=NovaOneButton('Connexions SSH');b.clicked.connect(lambda:ConnectionsDialog(self).exec());cl.addWidget(b);cl.addStretch()
+        from PySide6.QtWidgets import QCheckBox
+        from nexus_pairing import enabled,set_enabled
+        pair=QCheckBox('Autoriser la découverte N3XV5 sur le réseau local')
+        pair.setChecked(enabled())
+        pair.setToolTip('Émet une annonce UDP locale. Aucune clé privée n’est transmise.')
+        pair.toggled.connect(lambda checked:(set_enabled(checked),QMessageBox.information(self,'Appairage N3XV5','Redémarre le Terminal pour appliquer le changement.')))
+        cl.addWidget(pair)
+        cl.addWidget(QLabel('Appairage : SSH ▾ → Appareils du réseau. Confirmation obligatoire sur les deux PC.'))
+        tabs.addTab(connection,'Connexions')
+        appearance=QWidget();ap=QVBoxLayout(appearance)
+        ap.addWidget(QLabel('NOVA 1.0 NEONGLASS  /  EFFETS VISUELS'))
+        animation=QCheckBox('Reflets électriques discrets (terminal actif seulement)')
+        animation.setChecked(parent.animations_enabled)
+        animation.toggled.connect(parent.set_animations_enabled)
+        ap.addWidget(animation)
+        op_label=QLabel(f'Opacité des terminaux : {parent.terminal_opacity} %')
+        ap.addWidget(op_label)
+        opacity=QSlider(Qt.Orientation.Horizontal)
+        opacity.setRange(65,100);opacity.setSingleStep(1)
+        opacity.setValue(parent.terminal_opacity)
+        opacity.valueChanged.connect(lambda value:(op_label.setText(f'Opacité des terminaux : {value} %'),parent.set_terminal_opacity(value)))
+        ap.addWidget(opacity)
+        ap.addWidget(QLabel('Le contenu des terminaux reste lisible : seule la surface du terminal est ajustée.'))
+        ap.addStretch()
+        tabs.addTab(appearance,'Apparence')
+        updates=QWidget();ul=QVBoxLayout(updates)
+        ul.addWidget(QLabel('NEXUS Update — canal stable'))
+        ul.addWidget(QLabel('Importer une archive .deb locale ou rechercher une version sur le serveur.'))
+        ul.addWidget(QLabel('Les mises à jour demandent confirmation et sont installées via apt.'))
+        self.result=QPlainTextEdit();self.result.setReadOnly(True);self.result.setMaximumHeight(155)
+        ul.addWidget(self.result)
+        local=NovaOneButton('Importer .deb…');local.clicked.connect(self.local_update);ul.addWidget(local)
+        check=NovaOneButton('Rechercher sur le serveur');check.clicked.connect(self.server_check);ul.addWidget(check)
+        update=NovaOneButton('Installer la mise à jour serveur…');update.clicked.connect(self.server_update);ul.addWidget(update)
+        ul.addStretch();tabs.addTab(updates,'Mise à jour')
+        close=NovaOneButton('Fermer');close.clicked.connect(self.accept);self.body.addWidget(close)
+    def cli(self,*args):
+        import sys
+        return [sys.executable,str(HERE/'nexus_updater.py'),*args]
+    def local_update(self):
+        from PySide6.QtWidgets import QFileDialog
+        file,_=QFileDialog.getOpenFileName(self,'Choisir un paquet NEXUS',str(Path.home()/'Téléchargements'),'Paquets Debian (*.deb)')
+        if not file:return
+        self.result.setPlainText('Paquet sélectionné : '+file)
+        if QMessageBox.question(self,'Confirmer','Vérifier et installer ce paquet NEXUS ?')!=QMessageBox.StandardButton.Yes:return
+        self.launch_installer('install-file','--file',file)
+    def server_check(self):
+        import subprocess
+        p=subprocess.run(self.cli('check'),capture_output=True,text=True,timeout=20)
+        self.result.setPlainText((p.stdout+'\n'+p.stderr).strip() or 'Aucune réponse')
+    def server_update(self):
+        if QMessageBox.question(self,'Confirmer','Télécharger et installer une mise à jour NEXUS depuis le serveur ?')!=QMessageBox.StandardButton.Yes:return
+        self.launch_installer('update')
+    def launch_installer(self,*args):
+        import subprocess
+        # Polkit requests authentication through the desktop; never run a shell from an update manifest.
+        cmd=['pkexec',*self.cli(*args)] if shutil.which('pkexec') else None
+        if not cmd:
+            self.result.setPlainText('pkexec indisponible : installe policykit-1 ou utilise le CLI dans un terminal.')
+            return
+        try:
+            subprocess.Popen(cmd,start_new_session=True)
+            self.result.setPlainText('Installation demandée. Le dialogue d’autorisation système peut apparaître.\nRelance NEXUS après mise à jour.')
+        except OSError as e:self.result.setPlainText(str(e))
 
 class Workspace(QWidget):
     event=Signal(str,object)
@@ -226,19 +365,32 @@ class Workspace(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground,True)
         self.setAutoFillBackground(True)
         self.setStyleSheet(STYLE)
-        self.setMinimumSize(580,420)
+        self.setMinimumSize(680,455)
+        self.ui_settings=QSettings('N3XV5', 'TerminalHUD')
         self.mode='quad';self.tiles=[None]*4;self._layout_root=None
+        self.terminal_opacity=max(65,min(100,int(self.ui_settings.value('opacity',82))))
+        self.animations_enabled=self.ui_settings.value('animations',True,type=bool)
+        self.registry=Registry()
+        self.active_tile=None
         self.outer=QVBoxLayout(self);self.outer.setContentsMargins(5,5,5,5);self.outer.setSpacing(5)
         self.header=HeaderCircuit();self.header.setFixedHeight(72)
         hh=QHBoxLayout(self.header);hh.setContentsMargins(16,8,15,8)
         logo=QLabel();logo.setPixmap(icon('nexus').pixmap(QSize(49,49)));hh.addWidget(logo)
         titlecol=QVBoxLayout()
-        self.title_label=self.label('NEXUS Terminal — ElectroBlueNEON','title')
-        self.subtitle_label=self.label('MULTI-TERMINAL  /  REMOTE  /  SCRIPTS  /  AUTOMATION','sub')
+        self.title_label=self.label('N3XV5 Terminal — NOVA 1.0','title')
+        self.subtitle_label=self.label('M U L T I - T E R M I N A L   /   S S H   /   S C R I P T S','sub')
         titlecol.addWidget(self.title_label);titlecol.addWidget(self.subtitle_label)
         hh.addLayout(titlecol);hh.addStretch()
         self.status=self.label('SESSIONS : 0','dim');hh.addWidget(self.status)
-        self.online_label=self.label('●  ONLINE','dim');hh.addWidget(self.online_label)
+        self.online_label=self.label('●  LOCAL / READY','dim');hh.addWidget(self.online_label)
+        # Actual QMovie (not unsupported SVG-CSS animation), only one subtle moving signal.
+        self.signal_label=QLabel();self.signal_label.setFixedSize(65,25)
+        self.signal_movie=QMovie(str(HERE/'assets'/'animations'/'ElectroBlueNEON_pcb_signal.gif'))
+        if self.signal_movie.isValid():
+            self.signal_movie.setScaledSize(QSize(65,25))
+            self.signal_label.setMovie(self.signal_movie)
+            if self.animations_enabled:self.signal_movie.start()
+            hh.addWidget(self.signal_label)
         self.window_controls=QWidget()
         controls=QHBoxLayout(self.window_controls)
         controls.setContentsMargins(10,0,0,0);controls.setSpacing(4)
@@ -251,29 +403,28 @@ class Workspace(QWidget):
         self.outer.addWidget(self.header)
         bar=QHBoxLayout();bar.setSpacing(5)
         self.bar=bar
-        bar.addWidget(button('Terminals',lambda:None,'terminal'))
+        # Terminal workspace is already visible; no dead 'Terminals' action.
         bar.addWidget(button('Sessions',self.show_sessions,'apps'))
+        self.ssh_btn=button('SSH ▾',self.show_ssh_menu,'activity');bar.addWidget(self.ssh_btn)
         bar.addWidget(button('Paramètres',self.show_settings,'settings'))
-        bar.addWidget(button('Scripts',self.show_scripts,'code'))
-        bar.addWidget(button('Affichage ▾',self.show_display,'settings'))
+        self.scripts_btn=button('Scripts ▾',self.show_scripts,'code');bar.addWidget(self.scripts_btn)
+        self.display_btn=button('Affichage ▾',self.show_display,'settings');bar.addWidget(self.display_btn)
         bar.addStretch()
         bar.addWidget(button('+ Terminal',self.add_session,'terminal'))
+        from nexus_pairing import PairingService
+        self.pairing_service=PairingService()
+        self.pairing_service.start()
         self.outer.addLayout(bar)
         body=QHBoxLayout();body.setSpacing(5);self.outer.addLayout(body,1)
-        self.nav=Frame();self.nav.setFixedWidth(158)
-        nv=QVBoxLayout(self.nav);nv.setContentsMargins(6,12,6,8)
-        for text,ico in [('NEXUS Terminal','terminal'),('Applications','apps'),('Settings','settings')]:
-            b=button(text,lambda t=text:self.nav_action(t),ico,'nav')
-            if text=='NEXUS Terminal':b.setCheckable(True);b.setChecked(True)
-            nv.addWidget(b)
-        nv.addStretch();nv.addWidget(self.label('◈  ELECTROBLUE','dim'))
+        # Reserved blank left column: no duplicate or placeholder controls.
+        self.nav=NeonGlassPanel(accent='#0fa8d0',cut=12);self.nav.setFixedWidth(148)
+        self.nav.setToolTip('')
         body.addWidget(self.nav)
-        self.stage=QWidget();self.stage.setObjectName('stage')
-        self.stage.setAttribute(Qt.WidgetAttribute.WA_StyledBackground,True)
-        self.stage.setAutoFillBackground(True)
+        self.stage=NeonGlassPanel(accent='#0ea8d4',cut=16);self.stage.setObjectName('stage')
+        # Draw bevel/glass natively; keep user-supplied SVG assets optional, not forced.
         self.stage.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Expanding)
         self.stage_layout=QVBoxLayout(self.stage)
-        self.stage_layout.setContentsMargins(0,0,0,0);body.addWidget(self.stage,1)
+        self.stage_layout.setContentsMargins(9,10,9,9);body.addWidget(self.stage,1)
         self.rebuild()
         QTimer.singleShot(0,self.apply_responsive)
     def resizeEvent(self,event):
@@ -281,18 +432,37 @@ class Workspace(QWidget):
         self.apply_responsive()
     def apply_responsive(self):
         w=self.width()
-        self.nav.setVisible(w>=940)
+        self.nav.setVisible(w>=1020)
         self.subtitle_label.setVisible(w>=1040)
         self.online_label.setVisible(w>=1160)
-        self.title_label.setText('NEXUS Terminal' if w<790 else 'NEXUS Terminal — ElectroBlueNEON')
+        self.title_label.setText('N3XV5 Terminal' if w<790 else 'N3XV5 Terminal — NOVA 1.0')
     @staticmethod
     def label(text,name=None):
         l=QLabel(text)
         if name:l.setObjectName(name)
         return l
-    def nav_action(self,text):
-        if text=='Settings':self.show_settings()
-        elif text=='Applications':self.add_session()
+    def show_ssh_menu(self):
+        menu=QMenu(self)
+        menu.addAction('Connexions SSH…',lambda:ConnectionsDialog(self,'SSH').exec())
+        menu.addAction('Clés SSH…',self.show_ssh_keys)
+        menu.addSeparator()
+        menu.addAction('SSH local / réseau LAN…',self.show_lan_ssh)
+        menu.addAction('Appareils du réseau / Appairage…',self.show_pairing)
+        menu.exec(self.ssh_btn.mapToGlobal(self.ssh_btn.rect().bottomLeft()))
+
+    def show_pairing(self):
+        from nexus_pairing_dialog import PairingDialog
+        PairingDialog(self.pairing_service,self).exec()
+
+    def show_lan_ssh(self):
+        from nexus_lan_ssh import LANSSHDialog
+        LANSSHDialog(self).exec()
+
+    def closeEvent(self,event):
+        if hasattr(self,'signal_movie'):self.signal_movie.stop()
+        if hasattr(self,'pairing_service'):self.pairing_service.shutdown()
+        super().closeEvent(event)
+
     def emit_status(self):
         self.status.setText('SESSIONS : '+str(sum(x is not None for x in self.tiles)))
     def rebuild(self):
@@ -335,20 +505,22 @@ class Workspace(QWidget):
         self.mode=mode;self.rebuild();self.event.emit('terminal.layout.changed',{'layout':mode})
     def add_session(self,index=None):
         if not shutil.which('tmux'):
-            QMessageBox.warning(self,'tmux absent','Installe tmux : sudo apt install tmux')
+            show_notice(self,'TMUX ABSENT','Installe tmux : sudo apt install tmux','Warning')
             return
         d=ConnectDialog(self)
         if d.exec()!=QDialog.DialogCode.Accepted:return
         try:name,remote,host=d.values()
-        except ValueError as e:QMessageBox.warning(self,'Paramètres invalides',str(e));return
+        except ValueError as e:show_notice(self,'PARAMÈTRES INVALIDES',str(e),'Warning');return
         max_slots=4 if self.mode=='quad' else 3
         if index is None:index=next((i for i in range(max_slots) if self.tiles[i] is None),None)
         if index is None or self.tiles[index] is not None:
-            QMessageBox.information(self,'Panneaux occupés','Choisis un panneau vide.');return
+            show_notice(self,'PANNEAUX OCCUPÉS','Choisis un panneau vide.','Info');return
         command=remote_cmd(name,host) if remote else local_cmd(name)
         tile=TerminalTile(name,command,remote)
         tile.closed.connect(lambda t=tile:self.close_tile(t))
+        tile.terminal.apply_opacity(self.terminal_opacity)
         self.tiles[index]=tile
+        self._wire_tile(tile)
         self.rebuild()
         self.event.emit('terminal.session.created',{'name':name,'remote':remote,'slot':index})
         if not remote:self.share_dialog(name)
@@ -372,19 +544,118 @@ class Workspace(QWidget):
         max_slots=4 if self.mode=='quad' else 3
         index=next((i for i in range(max_slots) if self.tiles[i] is None),None)
         if index is None:
-            QMessageBox.information(self,'Panneaux occupés','Aucun emplacement disponible.');return False
+            show_notice(self,'PANNEAUX OCCUPÉS','Aucun emplacement disponible.','Info');return False
         tile=TerminalTile(name,command,remote)
         tile.closed.connect(lambda t=tile:self.close_tile(t))
-        self.tiles[index]=tile;self.rebuild()
+        tile.terminal.apply_opacity(self.terminal_opacity)
+        self.tiles[index]=tile;self._wire_tile(tile);self.rebuild()
         self.event.emit('terminal.session.created',{'name':name,'remote':remote,'slot':index})
         return True
+    def show_ssh_keys(self):
+        from nexus_ssh_keys import SSHKeysDialog
+        SSHKeysDialog(self).exec()
+    def set_terminal_opacity(self,value):
+        self.terminal_opacity=int(value)
+        self.ui_settings.setValue('opacity',self.terminal_opacity)
+        for tile in self.tiles:
+            if tile:tile.terminal.apply_opacity(self.terminal_opacity)
+    def set_animations_enabled(self, enabled):
+        self.animations_enabled=bool(enabled)
+        self.ui_settings.setValue('animations',self.animations_enabled)
+        self.stage.set_animated(self.animations_enabled)
+        if self.signal_movie.isValid():
+            if self.animations_enabled:self.signal_movie.start()
+            else:self.signal_movie.stop()
+        for tile in self.tiles:
+            if tile:
+                tile.set_animated(self.animations_enabled and tile is self.active_tile)
     def show_sessions(self):
         SessionDialog(self,self).exec()
     def show_settings(self):
-        ConnectionsDialog(self).exec()
+        SettingsHub(self).exec()
+    def _wire_tile(self,tile):
+        tile.terminal.quick_registry=self.registry
+        tile.terminal.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        tile.terminal.customContextMenuRequested.connect(lambda pos,t=tile:self.terminal_menu(t,pos))
+        tile.terminal.installEventFilter(self)
+        self.active_tile=tile
+        for other in self.tiles:
+            if other:
+                other.set_animated(self.animations_enabled)
+                other.set_active(other is tile)
+    def eventFilter(self,obj,event):
+        from PySide6.QtCore import QEvent
+        if event.type()==QEvent.Type.FocusIn:
+            for tile in self.tiles:
+                if tile and tile.terminal is obj:
+                    self.active_tile=tile
+                    for other in self.tiles:
+                        if other:other.set_active(other is tile)
+                    break
+        return super().eventFilter(obj,event)
+    def _target(self):
+        if self.active_tile in self.tiles:return self.active_tile
+        return next((t for t in self.tiles if t),None)
+    def _commands_menu(self,menu):
+        add=menu.addAction('＋ Ajouter une commande…')
+        add.triggered.connect(self.add_quick_command)
+        menu.addSeparator()
+        for category in sorted({c['category'] for c in self.registry.commands}):
+            group=menu.addMenu(category)
+            for item in self.registry.commands:
+                if item['category']==category:
+                    action=group.addAction(item['name'])
+                    action.triggered.connect(lambda checked=False,c=item:self.run_quick(c))
+        if not self.registry.commands:menu.addAction('Aucune commande enregistrée').setEnabled(False)
     def show_scripts(self):
-        QMessageBox.information(self,'Scripts & macros','Le gestionnaire de macros v0.4 reste disponible dans nexus_terminal.py.\n'
-                                'Cette interface v0.5 démarre volontairement sans application.')
+        menu=QMenu(self);self._commands_menu(menu)
+        menu.exec(self.scripts_btn.mapToGlobal(self.scripts_btn.rect().bottomLeft()))
+    def terminal_menu(self,tile,pos):
+        self.active_tile=tile
+        menu=QMenu(tile.terminal)
+        sub=menu.addMenu('Commandes rapides');self._commands_menu(sub)
+        menu.addSeparator()
+        menu.addAction('Copier la sélection',lambda:QApplication.clipboard().setText(tile.terminal.selectedText()))
+        menu.addAction('Coller',lambda:tile.terminal.pasteClipboard())
+        menu.exec(tile.terminal.mapToGlobal(pos))
+    def run_quick(self,item):
+        tile=self._target()
+        if tile is None:show_notice(self,'TERMINAL REQUIS','Sélectionne ou ouvre un terminal.','Info');return
+        try:command=expand(item['command'],self.registry.variables)
+        except ValueError as e:show_notice(self,'VARIABLE MANQUANTE',str(e),'Warning');return
+        if len(command)>4096:show_notice(self,'COMMANDE TROP LONGUE','Limite de 4096 caractères.','Warning');return
+        # Explicit confirmation for all commands; never silently execute arbitrary shell.
+        if QMessageBox.question(self,'Exécuter dans '+tile.session_name,command, QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No)!=QMessageBox.StandardButton.Yes:return
+        tile.terminal.sendText(command+'\n')
+    def add_quick_command(self):
+        dlg=GlassDialog(self,'N3XV5 — Ajouter une commande')
+        dlg.setMinimumSize(620,560)
+        # Artwork is translucent already; don't overwrite its skin with a flat fill.
+        layout=dlg.body;form=QFormLayout();layout.addLayout(form)
+        name=QLineEdit();category=QComboBox();category.setEditable(True);category.addItems(['SSH','Git','Docker','Système','Personnalisé'])
+        shell=QPlainTextEdit();shell.setPlaceholderText('ssh -p ${SSH_PORT} ${SSH_USER}@${SSH_HOST}');shell.setMaximumHeight(85)
+        form.addRow('Nom',name);form.addRow('Type / Application',category);form.addRow('Commande shell',shell)
+        layout.addWidget(QLabel('Variables du profil : ${NOM_VARIABLE}'))
+        vn=QLineEdit();vv=QLineEdit();feedback=QLabel('');feedback.setStyleSheet('font-size:9px;color:#54e3a0;')
+        form.addRow('Nouvelle variable',vn);form.addRow('Valeur',vv);layout.addWidget(feedback)
+        def check(text):
+            if not text:return feedback.setText('')
+            try:validate_name(text)
+            except ValueError:feedback.setStyleSheet('font-size:9px;color:#ff5265;');feedback.setText('Rouge : nom interdit');return
+            if text in self.registry.variables:
+                feedback.setStyleSheet('font-size:9px;color:#ffab46;');feedback.setText('Orange : variable existante');return
+            feedback.setStyleSheet('font-size:9px;color:#52ef9c;');feedback.setText('Vert : nouveau nom disponible')
+        vn.textChanged.connect(check)
+        def add_var():
+            try:self.registry.add_variable(vn.text().strip(),vv.text());vn.clear();vv.clear();feedback.setText('Variable ajoutée')
+            except ValueError as e:QMessageBox.warning(dlg,'Variable',str(e))
+        layout.addWidget(button('＋ Ajouter la variable',add_var))
+        buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Save|QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dlg.accept);buttons.rejected.connect(dlg.reject);layout.addWidget(buttons)
+        if dlg.exec()==QDialog.DialogCode.Accepted:
+            try:self.registry.add_command(name.text(),category.currentText(),shell.toPlainText())
+            except ValueError as e:QMessageBox.warning(self,'Commande',str(e))
+
     def show_display(self):
         m=QMenu(self)
         layouts=m.addMenu('Disposition des panneaux')
@@ -392,14 +663,20 @@ class Workspace(QWidget):
             action=layouts.addAction(text)
             action.setCheckable(True);action.setChecked(key==self.mode)
             action.triggered.connect(lambda checked=False,k=key:self.change_layout(k))
-        m.addSeparator();m.addAction('Sans grille — espace libre').setEnabled(False)
-        m.exec(self.mapToGlobal(self.rect().center()))
+        m.addSeparator()
+        opacity=m.addMenu('Opacité des terminaux')
+        for value in (65,75,82,90,100):
+            action=opacity.addAction(f'{value} %')
+            action.setCheckable(True);action.setChecked(value==self.terminal_opacity)
+            action.triggered.connect(lambda checked=False,v=value:self.set_terminal_opacity(v))
+        m.addAction('Sans grille — espace libre').setEnabled(False)
+        m.exec(self.display_btn.mapToGlobal(self.display_btn.rect().bottomLeft()))
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('NEXUS Terminal — ElectroBlueNEON v1.0.0')
+        self.setWindowTitle('N3XV5 Terminal HUD — NOVA 1.0 NeonGlass v1.4.3')
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
-        self.resize(1250,760);self.setMinimumSize(600,460)
+        self.resize(1250,760);self.setMinimumSize(710,490)
         self.workspace=Workspace()
         self.setCentralWidget(self.workspace)
         self.workspace.window_controls.show()
@@ -440,6 +717,14 @@ def create_shared_terminal_widget(host,session,parent=None):
 def main():
     app=QApplication.instance() or QApplication([])
     app.setStyle('Fusion')
+    app.setStyleSheet('''QMessageBox,QInputDialog,QDialog {background:#061827;color:#e7faff;}
+        QMessageBox QLabel {color:#e3f9ff;background:transparent;}
+        QMessageBox QPushButton,QDialogButtonBox QPushButton {
+            background:#092b43;color:#eaffff;border:1px solid #269cc8;
+            padding:7px 18px;min-height:24px;}
+        QMessageBox QPushButton:hover,QDialogButtonBox QPushButton:hover {
+            background:#104d69;border:1px solid #51eeff;}
+        QToolTip {background:#082638;color:#f5ffff;border:1px solid #26caf5;}''')
     w=MainWindow();w.show()
     return app.exec()
 if __name__=='__main__':raise SystemExit(main())

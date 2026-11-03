@@ -1,18 +1,16 @@
-# NEXUS Terminal — ElectroBlueNEON
+# N3XV5 Terminal HUD — NOVA 1.0 NeonGlass (V1.4.3 DEV)
 
-Application Linux Qt/PySide6 de gestion de terminaux et de profils de connexions SSH, FTP, TCP et HTTP.
+**Même moteur multi-terminal Qt + tmux que la V1.4.2, nouveau skin tiré des vrais sources du Terminal NOVA/NEXUS 1.0.0.**
 
-## Installation Linux Mint / XFCE
+Style actif : NeonGlass original peint avec `QPainter`. Les sources Electric Pulse restent conservées à titre d'archives dans `nexus_skin.py` et `assets/theme_nexus`, mais ne sont plus utilisées comme grands fonds SVG.
 
-Télécharger `nexus-terminal_1.0.0-1_all.deb` depuis ce dépôt, puis :
+Fonctionnalités : panneaux redimensionnables, SSH et gestion de clés, scripts/variables et prédiction Ctrl+Espace, sessions tmux, Smart Hover, appairage LAN confirmé sur les deux machines (à tester), colonne gauche vide et commandes de gestion en haut.
+
+Voir [README-V1.4.3.md](README-V1.4.3.md) pour la correspondance précise avec NOVA 1.0, l'installation et les limites de validation.
 
 ```bash
-sudo apt install ./nexus-terminal_1.0.0-1_all.deb
-/usr/bin/nexus-terminal
+bash setup-dependency.sh
+bash start-nexus.sh
 ```
 
-Les dépendances Python `PySide6` et `pyside6_qtermwidget` sont installées dans un environnement virtuel utilisateur au premier lancement (connexion Internet nécessaire).
-
-**Statut :** version 1.0.0 en validation sur Linux Mint/XFCE. Les connexions réseau nécessitent une configuration explicite ; l'ouverture d'un profil n'ouvre pas automatiquement des ports entrants.
-
-**Sécurité :** ne jamais publier de clé SSH privée, d'identifiants FTP ou de secrets API dans le dépôt.
+Le Terminal reste indépendant de N3XV5 HUB et d'IATB-CLI.

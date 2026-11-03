@@ -1,0 +1,270 @@
+{
+  "source": "Assets_Theme_NEXUS.tar(1).gz",
+  "assets": [
+    {
+      "file": "Buttons/UPLOADER.svg",
+      "bytes": 2811,
+      "sha256": "01f8c6f1b262033272cb05775d4e955ac8b925528fa0eefa96911dca907005ac"
+    },
+    {
+      "file": "terminal.svg",
+      "bytes": 249,
+      "sha256": "9e93d9c68bec5b2d720159c9b5d9fb71caca125254f172925f17228352509ca5"
+    },
+    {
+      "file": "Buttons/NON.svg",
+      "bytes": 2796,
+      "sha256": "81eeb105816883ff09e7bbb724ec162d478cab04045807473a08e7f6c9b6d8ad"
+    },
+    {
+      "file": "Windows/Console.svg",
+      "bytes": 2982,
+      "sha256": "be04e0ec70af589d0bc2d74e08507658a30dc7858ff6c02090969fed283c142a"
+    },
+    {
+      "file": "Popups/Connection.svg",
+      "bytes": 2975,
+      "sha256": "c6e8074fbd9141c8c9d59fbc12de29fd467d50b4313018b23611a01f080f2328"
+    },
+    {
+      "file": "Boxes/Performance_Wide.svg",
+      "bytes": 2864,
+      "sha256": "05a8cb2d3d331763be50146ace3c4f7674e3620e3e04e04ccb6d37431146e615"
+    },
+    {
+      "file": "ElectroBlueNEON_light_sweep.gif",
+      "bytes": 15360,
+      "sha256": "20ad36fef2fd0d4abf5994adb53a4fdaa8f11f0bc2ee965620ec9cb1f69729a0"
+    },
+    {
+      "file": "Buttons/SUCCES.svg",
+      "bytes": 2807,
+      "sha256": "8bbbc722a62a3366bdf0940eeded46c51a05ad2a1c8c74349fcb62753e37d0bc"
+    },
+    {
+      "file": "ElectroBlueNEON_spinner.gif",
+      "bytes": 8781,
+      "sha256": "2e66baf74e87016a55ff1b684247930bacb8653cd0a0c8fec8dcf0444097e3ee"
+    },
+    {
+      "file": "Popups/Details.svg",
+      "bytes": 2969,
+      "sha256": "94aa631f9d9f7404d1fbfe87292358321c6194c312cae7410da43b39049c58c7"
+    },
+    {
+      "file": "Popups/Confirm.svg",
+      "bytes": 2969,
+      "sha256": "c631705379ad3749ca6a4c0a409aafc5928a21c3219184d13f9d0c054fc7da48"
+    },
+    {
+      "file": "Buttons/PARAMETRES.svg",
+      "bytes": 2817,
+      "sha256": "db404b244e3f844e38db539d2ad3b044606e3928f883351501b6b64bfdbead2b"
+    },
+    {
+      "file": "Boxes/Performance_Tall.svg",
+      "bytes": 2867,
+      "sha256": "07b87b924f596d223bbe2ed3e759edc754e64da186a0f899ba8affc56bbbce10"
+    },
+    {
+      "file": "ElectroBlueNEON_neon_underline.gif",
+      "bytes": 9480,
+      "sha256": "3614f19577a17fa9cd74a85026de34caebac69954a9c3eb6e453f083c979cdad"
+    },
+    {
+      "file": "Buttons/APPLIQUER.svg",
+      "bytes": 2816,
+      "sha256": "4468185282c49d7406552c38260ff1dec85423347e25c1c5b4e3a64adfd474a5"
+    },
+    {
+      "file": "palette.svg",
+      "bytes": 320,
+      "sha256": "e90865863cf7deff4b54c16f927f4029a77adb332e8d6c1086e8939bc1d48c92"
+    },
+    {
+      "file": "Notifications/Warning.svg",
+      "bytes": 2844,
+      "sha256": "19edd99eb9de03056bfc4c80181d45c0cdf5caf6d3fb1ac496888ce87bd32ff5"
+    },
+    {
+      "file": "folder.svg",
+      "bytes": 200,
+      "sha256": "3590c6206bc2e60be63c604958c2d44e235ab70e37efc3c23d55c5b8c8c11680"
+    },
+    {
+      "file": "RougeERROR_pulse_ring.gif",
+      "bytes": 13969,
+      "sha256": "4753db32edace1e4aaf0e9bffd89e2dd667f1588e31256f522b46d2b21b7dba5"
+    },
+    {
+      "file": "activity.svg",
+      "bytes": 202,
+      "sha256": "f1e9c559c1d58b708b928b62ebbb089d06554e7d7b1077b7d28a31b0204d51cb"
+    },
+    {
+      "file": "Windows/Analytics.svg",
+      "bytes": 3000,
+      "sha256": "5c3be9051a2ac4bc95f4403fd52474bf20bb8d88bf992cfac5f6ce7f78d49cf6"
+    },
+    {
+      "file": "Boxes/Monitor_Ultrawide.svg",
+      "bytes": 2889,
+      "sha256": "b23075232c5a1632391b6930fc51bd3fd7388ee9a10e9be46c027d041e648514"
+    },
+    {
+      "file": "Buttons/OUI.svg",
+      "bytes": 2798,
+      "sha256": "437d83bef748625ad1f20a9c0698ee69b01fc58a985398a7fb5bed4c2d30711a"
+    },
+    {
+      "file": "Buttons/REINITIALISER.svg",
+      "bytes": 2828,
+      "sha256": "470a6ec5f4836bd055b88b141dcea76904dd9c5905ff088f7bddc21f8f4cc2dd"
+    },
+    {
+      "file": "Boxes/Telemetry_Strip.svg",
+      "bytes": 2853,
+      "sha256": "e4b22a9d9d7d1f9ed3684ecc2f1152506e2ceeef30029666034fc6de0bc53eb3"
+    },
+    {
+      "file": "apps.svg",
+      "bytes": 332,
+      "sha256": "3737369433f66d9b271737cf9a9fe3410d62d71dad62ce15cc2a9350cccbcdf7"
+    },
+    {
+      "file": "Buttons/ANNULER.svg",
+      "bytes": 2810,
+      "sha256": "880a393f75b5e9ecd77aa5c412ca6f2d3d1dbcab683372707e2f40a0f58d566d"
+    },
+    {
+      "file": "Boxes/Performance_Compact.svg",
+      "bytes": 2869,
+      "sha256": "b8f05e9c3f9e9172dca7b815f5f6025276a9985cd4ba8d19bcc5cb2e0c4367f8"
+    },
+    {
+      "file": "Boxes/Server_Rack.svg",
+      "bytes": 2853,
+      "sha256": "26e0a041a7098b7e4972b3957da25da8bd76856a1e644db16c685151e1632f89"
+    },
+    {
+      "file": "Buttons/CONNECTER.svg",
+      "bytes": 2814,
+      "sha256": "f100287c0aeb01b7c1ce022a8cc73c850ebd4a98791fab231d98e6c0b0c208e6"
+    },
+    {
+      "file": "settings.svg",
+      "bytes": 274,
+      "sha256": "97ed2785f66432c47a7fff04481a2fe80b34c9689ff23c64766960762ccf974d"
+    },
+    {
+      "file": "home.svg",
+      "bytes": 210,
+      "sha256": "cd0fa94d276ef5919e571dbb623f4b356bda377647b8c46fe349b56c553b9810"
+    },
+    {
+      "file": "Boxes/Metrics_Square.svg",
+      "bytes": 2863,
+      "sha256": "25465bafefaf40eddb12d01278b8d6eb81969def5bb357e261dc181cc9cf226d"
+    },
+    {
+      "file": "01_Electric_Pulse.svg",
+      "bytes": 5249,
+      "sha256": "6afc13aaec2d1a952d1739c9f256ed52c31370c72222392cf5f803d2ab7a70d1"
+    },
+    {
+      "file": "Popups/Settings.svg",
+      "bytes": 2971,
+      "sha256": "91d8f07867a597359bf5247eea13b0fd824b20ffa36a7944a800af1323f348e9"
+    },
+    {
+      "file": "Notifications/Success.svg",
+      "bytes": 2844,
+      "sha256": "b61c3f41e2fb657e09748d01f2f464849308584436e1cec8dad000e19257fc91"
+    },
+    {
+      "file": "ElectroBlueNEON_pcb_signal.gif",
+      "bytes": 25860,
+      "sha256": "18c23335bcb6b95f5dfd581c17fc1d650ff049e35936b0f9b0c3f11f4514e68e"
+    },
+    {
+      "file": "Windows/SplitView.svg",
+      "bytes": 3000,
+      "sha256": "2aa78baebcad99bdf5d0a8372eabbf665196ecbd22776cfe6de8caac34b1cbfc"
+    },
+    {
+      "file": "code.svg",
+      "bytes": 216,
+      "sha256": "784544c5083bf0dc0d7f3d5922b752aed38ea2e37a49881da8244501a331f8cc"
+    },
+    {
+      "file": "Boxes/Electric_Pulse_Original.svg",
+      "bytes": 5249,
+      "sha256": "6afc13aaec2d1a952d1739c9f256ed52c31370c72222392cf5f803d2ab7a70d1"
+    },
+    {
+      "file": "Buttons/FERMER.svg",
+      "bytes": 2807,
+      "sha256": "060ef0f44c3106abf749758ae7165fd8fc947bff8d5b38dcd7374688d7d2526b"
+    },
+    {
+      "file": "Notifications/Info.svg",
+      "bytes": 2846,
+      "sha256": "54beb00312996400d623f5a39b6c50c7b83d67bd4d16d932844c9d958c41abfd"
+    },
+    {
+      "file": "Boxes/Performance_Mini.svg",
+      "bytes": 2857,
+      "sha256": "5594c6c19ae98fafaba491d3a3cca0e91884ff47a3a499f2295afc379d291ec0"
+    },
+    {
+      "file": "Notifications/Error.svg",
+      "bytes": 2840,
+      "sha256": "aa46c4c70cd673ce716a3a9f36e02117f12eca51531066533c7eed583746100c"
+    },
+    {
+      "file": "Notifications/Network.svg",
+      "bytes": 2854,
+      "sha256": "1cad67a9b8d43a603b0103eb98033650fa7e5650c844ce465000dbd635f94373"
+    },
+    {
+      "file": "Windows/FullPage.svg",
+      "bytes": 2998,
+      "sha256": "1ef8970f57e308fc0a78d16107cfcf6958c4975d4729126456d0e6ebeb0895cb"
+    },
+    {
+      "file": "Buttons/ERREUR.svg",
+      "bytes": 2805,
+      "sha256": "9c6937a6054d892cf58d6939a7df79791b742732299efc1b337e4b46be7cb76b"
+    },
+    {
+      "file": "Popups/Alert.svg",
+      "bytes": 2965,
+      "sha256": "64a8f52942bf4af015d94247c15ec07ca1d062b6743a947408bdee5606fe1893"
+    },
+    {
+      "file": "Windows/Floating.svg",
+      "bytes": 2972,
+      "sha256": "2c5654a60367e812f7b59fb30c117271dee8c84e1399e3374568596f431a9e72"
+    },
+    {
+      "file": "Boxes/Dashboard_Large.svg",
+      "bytes": 2883,
+      "sha256": "3e53a62a0338c85785b0def80dec55370b88e42f8710b4b56caedfa5f5d2831c"
+    },
+    {
+      "file": "Boxes/Engine_Panel.svg",
+      "bytes": 2856,
+      "sha256": "ee7020515ef24573ae83bee8db955e58acee39b4b60b8ec2cacb44ee632a1e31"
+    },
+    {
+      "file": "Buttons/OK.svg",
+      "bytes": 2793,
+      "sha256": "ad6e40465824a903fc1803ba3496829a766b22c79cd43d7af0b331435a9448b1"
+    },
+    {
+      "file": "refresh.svg",
+      "bytes": 212,
+      "sha256": "8f32302bd3aa81af7fd4eae3195dc439dd5d3d6544381199a1d969629a426952"
+    }
+  ]
+}
