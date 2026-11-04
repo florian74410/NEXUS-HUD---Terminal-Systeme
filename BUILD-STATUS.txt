@@ -1,13 +1,8 @@
-N3XV5 Terminal HUD v1.4.3 — NOVA 1.0 NeonGlass restoration (DEV)
-
-Source: original NEXUS-Terminal-v1.0.0-Installateur.zip (NOVA Terminal 1.0 UI),
-        specifically nexus_terminal.py / NeonPanel and nexus_workspace.py / STYLE.
-The current multi-PTY, SSH, LAN, quick-command, variable registry, hover, and tmux
-business modules are preserved from v1.4.2.
-
-TESTS: 41 Python unit tests PASS. Python compilation and Bash syntax PASS.
-RUNTIME: Qt6/PySide6/pyside6-qtermwidget not installed in the test environment.
-        Real Qt rendering and interactive XFCE controls NOT YET tested.
-NETWORK: Live 2-PC SSH / LAN pairing NOT YET tested.
-PACKAGES: standalone .deb / .exe not built or validated.
-RELEASE: DEV feature branch, not merged to main.
+N3XV5 Terminal HUD 1.4.4 NOVA1 Animated (DEV)
+48 Python unit / structural tests PASS
+Python compileall PASS
+Bash syntax PASS
+Asset SVG XML PASS
+No GUI run in this container: PySide6 / QTermWidget unavailable.
+No live SSH or LAN pairing validation.
+Do not merge as stable without Linux Mint/XFCE functional checks.
