@@ -7,7 +7,7 @@ from PySide6.QtCore import Qt, QSize, QTimer, Signal, QPoint, QRectF, QVariantAn
 from PySide6.QtGui import QIcon, QFont, QColor, QPainter, QPen, QLinearGradient, QPolygonF, QPixmap, QMovie
 from PySide6.QtWidgets import (QApplication,QWidget,QMainWindow,QVBoxLayout,QHBoxLayout,
  QGridLayout,QLabel,QPushButton,QComboBox,QMenu,QDialog,QFormLayout,QLineEdit,
- QDialogButtonBox,QMessageBox,QSplitter,QFrame,QPlainTextEdit,QCheckBox,QSpinBox,QSizePolicy,QStyleFactory,QSlider,QInputDialog)
+ QDialogButtonBox,QMessageBox,QSplitter,QFrame,QPlainTextEdit,QCheckBox,QSpinBox,QSizePolicy,QStyleFactory,QSlider,QInputDialog,QGraphicsOpacityEffect)
 from pyside6_qtermwidget import QTermWidget
 from nexus_connections import ConnectionsDialog, SessionDialog, identity, GlassDialog
 from nexus_hover import SmartHover
@@ -111,6 +111,28 @@ class HexWindowButton(QPushButton):
         self.setToolTip({'min':'Minimiser','max':'Maximiser / Restaurer','close':'Fermer'}[kind])
         self.setStyleSheet('background:transparent;border:0;padding:0;')
         self._hover=False
+        self._click_glow=0.0
+        self._animations_enabled=True
+        self._click_animation=QVariantAnimation(self)
+        self._click_animation.setDuration(330)
+        self._click_animation.setStartValue(1.0)
+        self._click_animation.setEndValue(0.0)
+        self._click_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._click_animation.valueChanged.connect(self._click_tick)
+        self.pressed.connect(self._trigger_click)
+    def set_animated(self,enabled):
+        self._animations_enabled=bool(enabled)
+        if not enabled:
+            self._click_animation.stop()
+            self._click_glow=0.0
+            self.update()
+    def _trigger_click(self):
+        if self._animations_enabled:
+            self._click_animation.stop()
+            self._click_animation.start()
+    def _click_tick(self,value):
+        self._click_glow=float(value)
+        self.update()
     def enterEvent(self,event):
         self._hover=True;self.update();super().enterEvent(event)
     def leaveEvent(self,event):
@@ -120,8 +142,10 @@ class HexWindowButton(QPushButton):
         p=QPainter(self);p.setRenderHint(QPainter.RenderHint.Antialiasing)
         poly=QPolygonF([QPointF(9,2),QPointF(28,2),QPointF(35,17),
                         QPointF(28,32),QPointF(9,32),QPointF(2,17)])
-        p.setPen(QPen(QColor('#69f5ff' if self._hover else '#159cbe'),1.5))
-        p.setBrush(QColor('#10506c' if self._hover else '#061929'))
+        intensity = self._hover or self._click_glow > .05
+        p.setPen(QPen(QColor('#69f5ff' if intensity else '#159cbe'),
+                      1.5 + 1.5 * self._click_glow))
+        p.setBrush(QColor('#10506c' if intensity else '#061929'))
         p.drawPolygon(poly)
         p.setPen(QPen(QColor('#a6fcff' if self._hover else '#51cfe8'),2.2))
         if self.kind=='min':
@@ -159,15 +183,37 @@ class HeaderCircuit(Frame):
 
 class Terminal(QTermWidget):
     """Real QTermWidget PTY, with tmux for durable shared screen and SSH attach."""
-    def apply_opacity(self,percent):
-        # QTermWidget has its own paint surface; stylesheet alone cannot guarantee alpha.
-        # setTerminalOpacity is available in some bindings, fall back to palette.
-        value=max(0.35,min(1.0,percent/100.0))
-        if callable(getattr(self,"setTerminalOpacity",None)):
-            self.setTerminalOpacity(value)
-        else:
-            from PySide6.QtGui import QPalette
-            pal=self.palette();pal.setColor(QPalette.ColorRole.Base,QColor(3,17,29,int(255*value)));self.setPalette(pal)
+    def apply_opacity(self, percent):
+        """50–100% actual compositing, with a native-QTermWidget fast path.
+
+        Some distributions expose setTerminalOpacity(float), others do not.
+        In that case QGraphicsOpacityEffect guarantees real visual transparency;
+        it also fades glyphs, documented in README-V1.4.4.md.
+        """
+        value = max(50, min(100, int(percent)))
+        self._opacity_percent = value
+        fraction = value / 100.0
+        native = getattr(self, 'setTerminalOpacity', None)
+        if callable(native):
+            try:
+                native(fraction)
+                if self.graphicsEffect() is not None:
+                    self.setGraphicsEffect(None)
+                return
+            except (TypeError, RuntimeError, ValueError):
+                pass
+        # Actual alpha compositing even if this QTermWidget ignores RGBA palettes.
+        # At 100% remove the effect to avoid unnecessarily rendering to an FBO.
+        if value == 100:
+            if self.graphicsEffect() is not None:
+                self.setGraphicsEffect(None)
+            return
+        effect = self.graphicsEffect()
+        if not isinstance(effect, QGraphicsOpacityEffect):
+            effect = QGraphicsOpacityEffect(self)
+            self.setGraphicsEffect(effect)
+        effect.setOpacity(fraction)
+
     def __init__(self,command,parent=None,session_name=None):
         super().__init__(0,parent)
         self.setTerminalFont(QFont('DejaVu Sans Mono',10))
@@ -213,27 +259,31 @@ class TerminalTile(NovaOneTerminalFrame):
         super().__init__(parent)
         self.session_name=session_name
         self.remote=remote
-        v=QVBoxLayout(self);v.setContentsMargins(9,9,9,8);v.setSpacing(4)
+        v=QVBoxLayout(self);v.setContentsMargins(15,21,15,12);v.setSpacing(2)
         self._tile_layout=v
         h=QHBoxLayout()
         status_label=QLabel('●  '+('SSH / '+session_name if remote else 'LOCAL / '+session_name))
         status_label.setObjectName('sessionBadge');h.addWidget(status_label)
         h.addStretch()
-        close_button=NovaOneCloseButton(self)
-        close_button.clicked.connect(self.closed.emit)
-        h.addWidget(close_button)
+        self.close_button=NovaOneCloseButton(self)
+        self.close_button.clicked.connect(self.closed.emit)
+        h.addWidget(self.close_button)
         v.addLayout(h)
         self.terminal=Terminal(command,self,session_name=None if remote else session_name)
         self.terminal.setMinimumSize(80,65)
         self.setMinimumSize(142,112)
         v.addWidget(self.terminal,1)
+    def set_animated(self, enabled):
+        super().set_animated(enabled)
+        self.close_button.set_animated(enabled)
+
     def resizeEvent(self,event):
         super().resizeEvent(event)
-        # Keep the frame's beveled SVG visible while maximising usable PTY space.
+        # Keep the frame's asset perimeter visible without obscuring PTY text.
         if self.width()<340 or self.height()<240:
-            self._tile_layout.setContentsMargins(6,7,6,6)
+            self._tile_layout.setContentsMargins(12,18,12,10)
         else:
-            self._tile_layout.setContentsMargins(9,9,9,8)
+            self._tile_layout.setContentsMargins(15,21,15,12)
 
 class EmptyTile(Frame):
     requested=Signal()
@@ -310,7 +360,7 @@ class SettingsHub(GlassDialog):
         op_label=QLabel(f'Opacité des terminaux : {parent.terminal_opacity} %')
         ap.addWidget(op_label)
         opacity=QSlider(Qt.Orientation.Horizontal)
-        opacity.setRange(65,100);opacity.setSingleStep(1)
+        opacity.setRange(50,100);opacity.setSingleStep(1)
         opacity.setValue(parent.terminal_opacity)
         opacity.valueChanged.connect(lambda value:(op_label.setText(f'Opacité des terminaux : {value} %'),parent.set_terminal_opacity(value)))
         ap.addWidget(opacity)
@@ -368,7 +418,7 @@ class Workspace(QWidget):
         self.setMinimumSize(680,455)
         self.ui_settings=QSettings('N3XV5', 'TerminalHUD')
         self.mode='quad';self.tiles=[None]*4;self._layout_root=None
-        self.terminal_opacity=max(65,min(100,int(self.ui_settings.value('opacity',82))))
+        self.terminal_opacity=max(50,min(100,int(self.ui_settings.value('opacity',82))))
         self.animations_enabled=self.ui_settings.value('animations',True,type=bool)
         self.registry=Registry()
         self.active_tile=None
@@ -426,6 +476,7 @@ class Workspace(QWidget):
         self.stage_layout=QVBoxLayout(self.stage)
         self.stage_layout.setContentsMargins(9,10,9,9);body.addWidget(self.stage,1)
         self.rebuild()
+        self.set_animations_enabled(self.animations_enabled)
         QTimer.singleShot(0,self.apply_responsive)
     def resizeEvent(self,event):
         super().resizeEvent(event)
@@ -519,6 +570,7 @@ class Workspace(QWidget):
         tile=TerminalTile(name,command,remote)
         tile.closed.connect(lambda t=tile:self.close_tile(t))
         tile.terminal.apply_opacity(self.terminal_opacity)
+        tile.set_animated(self.animations_enabled)
         self.tiles[index]=tile
         self._wire_tile(tile)
         self.rebuild()
@@ -548,6 +600,7 @@ class Workspace(QWidget):
         tile=TerminalTile(name,command,remote)
         tile.closed.connect(lambda t=tile:self.close_tile(t))
         tile.terminal.apply_opacity(self.terminal_opacity)
+        tile.set_animated(self.animations_enabled)
         self.tiles[index]=tile;self._wire_tile(tile);self.rebuild()
         self.event.emit('terminal.session.created',{'name':name,'remote':remote,'slot':index})
         return True
@@ -563,6 +616,10 @@ class Workspace(QWidget):
         self.animations_enabled=bool(enabled)
         self.ui_settings.setValue('animations',self.animations_enabled)
         self.stage.set_animated(self.animations_enabled)
+        for control in self.findChildren(NovaOneButton):
+            control.set_animated(self.animations_enabled)
+        for control in (self.min_btn, self.max_btn, self.close_btn):
+            control.set_animated(self.animations_enabled)
         if self.signal_movie.isValid():
             if self.animations_enabled:self.signal_movie.start()
             else:self.signal_movie.stop()
@@ -665,7 +722,7 @@ class Workspace(QWidget):
             action.triggered.connect(lambda checked=False,k=key:self.change_layout(k))
         m.addSeparator()
         opacity=m.addMenu('Opacité des terminaux')
-        for value in (65,75,82,90,100):
+        for value in (50,60,70,80,90,100):
             action=opacity.addAction(f'{value} %')
             action.setCheckable(True);action.setChecked(value==self.terminal_opacity)
             action.triggered.connect(lambda checked=False,v=value:self.set_terminal_opacity(v))
@@ -674,7 +731,7 @@ class Workspace(QWidget):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('N3XV5 Terminal HUD — NOVA 1.0 NeonGlass v1.4.3')
+        self.setWindowTitle('N3XV5 Terminal HUD — NOVA 1.0 Animated v1.4.4')
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
         self.resize(1250,760);self.setMinimumSize(710,490)
         self.workspace=Workspace()
