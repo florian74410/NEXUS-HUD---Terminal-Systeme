@@ -1,19 +1,87 @@
-"""NOVA 1.0 NeonGlass restored for N3XV5 Terminal HUD v1.4.3.
+"""NOVA 1.0 NeonGlass + original NEXUS asset skin for N3XV5 v1.4.4.
 
 Source of visual grammar: the genuine NOVA 1.0 `nexus_terminal.py`,
 `NeonPanel` + QSS, and the original `nexus_workspace.py` (Frame/HeaderCircuit).
 
 The painter scales to live QWidget dimensions.  No SVG is stretched across a
 PTY, and no I/O, shell execution, profile handling or socket logic lives here.
-The ElectricPulse / ElectricCarbon assets remain preserved in `nexus_skin.py`
-as an optional legacy style, not the active default.
+ElectricPulse.svg is nine-sliced around each terminal, while original button SVGs
+provide static skins and Qt adds a limited click animation. PTY remains real.
 """
 from __future__ import annotations
 
 from math import sin
-from PySide6.QtCore import Qt, QTimer, QVariantAnimation, QEasingCurve
-from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPainterPath, QPen
+from pathlib import Path
+from functools import lru_cache
+import re
+from PySide6.QtCore import Qt, QTimer, QVariantAnimation, QEasingCurve, QRectF
+from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap, QFontMetrics
 from PySide6.QtWidgets import QFrame, QPushButton, QDialog, QVBoxLayout, QHBoxLayout, QLabel
+
+# Static SVGs from the user-supplied NEXUS asset pack. Animation is rendered by Qt,
+# because QtSvg does not execute SVG/CSS keyframe animations.
+from nexus_skin import _svg_renderer
+
+THEME_ASSETS = Path(__file__).resolve().parent / 'assets' / 'theme_nexus'
+
+
+@lru_cache(maxsize=24)
+def _raster_asset(relative_path: str, strip_text: bool = False) -> QPixmap:
+    """Lazy Qt pixmap cache; only called after QApplication has been initialized."""
+    path = THEME_ASSETS / relative_path
+    renderer = _svg_renderer(path, remove_text=strip_text, electric_only=True)
+    if not renderer.isValid():
+        return QPixmap()
+    size = renderer.defaultSize()
+    if size.width() < 1 or size.height() < 1:
+        return QPixmap()
+    image = QPixmap(size)
+    image.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(image)
+    renderer.render(painter)
+    painter.end()
+    return image
+
+
+def _asset_border(painter: QPainter, sprite: QPixmap, width: int, height: int):
+    """Nine-slice only the perimeter; the PTY content is never covered.
+
+    Original Electric Pulse artwork is retained and sliced using its transparent
+    outer bounds. The center panel is omitted so it cannot tint terminal text.
+    """
+    if sprite.isNull() or width < 80 or height < 85:
+        return
+    source = QRectF(40, 52, 880, 428)
+    sx = [source.left(), source.left() + 126, source.right() - 126, source.right()]
+    sy = [source.top(), source.top() + 115, source.bottom() - 88, source.bottom()]
+    inset_x = min(24.0, max(11.0, width * .075))
+    inset_top = min(26.0, max(18.0, height * .13))
+    inset_bottom = min(19.0, max(10.0, height * .09))
+    dx = [0.0, inset_x, width - inset_x, float(width)]
+    dy = [0.0, inset_top, height - inset_bottom, float(height)]
+    # Avoid drawing the asset's opaque carbon center over the live QTermWidget.
+    for row in range(3):
+        for col in range(3):
+            if row == 1 and col == 1:
+                continue
+            src = QRectF(sx[col], sy[row], sx[col+1]-sx[col], sy[row+1]-sy[row])
+            dst = QRectF(dx[col], dy[row], dx[col+1]-dx[col], dy[row+1]-dy[row])
+            if dst.width() > 0 and dst.height() > 0:
+                painter.drawPixmap(dst, sprite, src)
+
+
+def _button_asset(text: str) -> QPixmap:
+    """Map real action labels to an SVG button; keep Qt's dynamic label."""
+    key = re.sub(r'^[^\wÀ-ÿ]+', '', text).strip().upper()
+    key = re.sub(r'\s*[▾▼].*$', '', key)
+    substitutions = {'PARAMÈTRES':'PARAMETRES', 'SETTINGS':'PARAMETRES',
+                     'FERMER':'FERMER', 'ANNULER':'ANNULER', 'ENREGISTRER':'APPLIQUER',
+                     'REINITIALISER':'REINITIALISER', 'AJOUTER':'CONNECTER',
+                     'CONNEXION':'CONNECTER', 'OUI':'OUI', 'NON':'NON'}
+    key = substitutions.get(key, key)
+    path = f'Buttons/{key}.svg' if (THEME_ASSETS/'Buttons'/f'{key}.svg').is_file() else 'Buttons/CONNECTER.svg'
+    return _raster_asset(path, strip_text=True)
+
 
 # Original NOVA v1.0 NeonPanel palette / glass fills.
 CYAN = QColor('#10c7f4')
@@ -120,41 +188,92 @@ class NeonGlassPanel(QFrame):
 
 
 class NovaOneTerminalFrame(NeonGlassPanel):
-    """Original v1 ConsoleFrame shape around a real QTermWidget instance."""
+    """NOVA 1.0 glass + the actual ElectricPulse asset, nine-sliced per PTY."""
     def __init__(self, parent=None):
         super().__init__(parent, accent='#1addfa', cut=13, fill=True)
         self.setMinimumSize(142, 112)
+        self._terminal_art = None
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if self._terminal_art is None:
+            self._terminal_art = _raster_asset('01_Electric_Pulse.svg')
+        if self._terminal_art.isNull():
+            return  # NOVA 1.0 painted fallback, no missing-resource crash
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setOpacity(.94 if self._active else .78)
+        _asset_border(painter, self._terminal_art, self.width(), self.height())
+        # Qt-controlled animated spark on the active tile only, never on text.
+        if self._active and self._animated:
+            progress = self._phase / 120.0
+            left, right = 32.0, max(40.0, self.width() - 30.0)
+            pos = left + progress * max(1.0, right - left)
+            glow = QLinearGradient(pos - 28, 4, pos + 28, 4)
+            glow.setColorAt(0, QColor(16, 219, 255, 0))
+            glow.setColorAt(.5, QColor(114, 246, 255, 225))
+            glow.setColorAt(1, QColor(16, 219, 255, 0))
+            painter.setPen(QPen(glow, 3))
+            painter.drawLine(int(pos - 28), 5, int(min(right, pos + 28)), 5)
+        painter.end()
 
 
 class NovaOneButton(QPushButton):
-    """Original v1 QPushButton treatment; never replace a real clickable widget."""
+    """Real NOVA QPushButton with supplied SVG skin and click-triggered pulse.
+
+    The button stays interactive, focusable, keyboard accessible and retains
+    its real text and icon. Qt animations are finite, not a permanent GIF loop.
+    """
     def __init__(self, text='', parent=None):
         super().__init__(text, parent)
         self.setMinimumHeight(29)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setStyleSheet('''
-            QPushButton {background:#07283a;border:1px solid #187da2;
-                border-radius:4px;padding:5px 9px;color:#d4f5ff;}
-            QPushButton:hover {background:#0e425c;border:1px solid #41e9ff;}
-            QPushButton:pressed {background:#156682;}
-            QPushButton:checked {background:#12475f;border:1px solid #7bf5ff;color:white;}
-            QPushButton:disabled {background:#051724;border-color:#12384b;color:#648294;}
-        ''')
+        self.setStyleSheet('background:transparent;border:0;padding:4px 9px;color:#d4f5ff;')
         self._hover = 0.0
+        self._click = 0.0
+        self._effects_enabled = True
         self._motion = QVariantAnimation(self)
         self._motion.setDuration(190)
         self._motion.setEasingCurve(QEasingCurve.Type.OutCubic)
         self._motion.valueChanged.connect(self._update_glow)
+        self._click_animation = QVariantAnimation(self)
+        self._click_animation.setDuration(380)
+        self._click_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._click_animation.valueChanged.connect(self._update_click)
+        self.pressed.connect(self._pulse)
+
+    def set_animated(self, enabled):
+        self._effects_enabled = bool(enabled)
+        if not enabled:
+            self._motion.stop()
+            self._click_animation.stop()
+            self._hover = 0.0
+            self._click = 0.0
+            self.update()
 
     def _update_glow(self, value):
         self._hover = float(value)
         self.update()
 
+    def _update_click(self, value):
+        self._click = float(value)
+        self.update()
+
     def _animate(self, dest):
+        if not self._effects_enabled:
+            return
         self._motion.stop()
         self._motion.setStartValue(self._hover)
         self._motion.setEndValue(float(dest))
         self._motion.start()
+
+    def _pulse(self):
+        if not self._effects_enabled:
+            return
+        self._click_animation.stop()
+        self._click_animation.setStartValue(1.0)
+        self._click_animation.setEndValue(0.0)
+        self._click_animation.start()
 
     def enterEvent(self, event):
         self._animate(1)
@@ -165,17 +284,49 @@ class NovaOneButton(QPushButton):
         super().leaveEvent(event)
 
     def paintEvent(self, event):
-        super().paintEvent(event)
-        if self._hover > .01 and self.isEnabled():
-            p = QPainter(self)
-            edge = QColor('#71eeff')
-            edge.setAlpha(round(200 * self._hover))
-            p.setPen(QPen(edge, 1.5))
-            p.drawLine(11, self.height() - 2, max(12, self.width() - 11), self.height() - 2)
-            p.end()
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        rect = self.rect()
+        compact = self.text() == '×'
+        art = QPixmap() if compact else _button_asset(self.text())
+        painter.setOpacity(1.0 if self.isEnabled() else .48)
+        if not art.isNull():
+            painter.drawPixmap(QRectF(rect), art, QRectF(art.rect()))
+        else:
+            painter.setPen(QPen(QColor('#1f9cbe'), 1.2))
+            painter.setBrush(QColor('#07283a'))
+            painter.drawRoundedRect(QRectF(rect).adjusted(1, 1, -1, -1), 4, 4)
+        painter.setOpacity(1.0)
+        if self.isDown():
+            painter.fillRect(rect.adjusted(6, 6, -6, -6), QColor(25, 207, 250, 45))
+        if self._hover > .01 or self._click > .01:
+            opacity = min(1.0, .38 * self._hover + .9 * self._click)
+            painter.setPen(QPen(QColor(105, 237, 255, int(210 * opacity)), 2.0))
+            painter.drawLine(12, self.height() - 3, max(12, self.width() - 12), self.height() - 3)
+            if self._click > .01:
+                progress = 1.0 - self._click
+                x = int(10 + progress * max(0, self.width() - 22))
+                painter.setPen(QPen(QColor(189, 252, 255, int(255 * self._click)), 2.5))
+                painter.drawLine(x, 3, x, max(3, self.height() - 4))
+        painter.setPen(QColor('#e8fcff' if self.isEnabled() else '#688b9a'))
+        metrics = QFontMetrics(self.font())
+        label_rect = rect.adjusted(8, 1, -8, -1)
+        button_icon = self.icon()
+        if not button_icon.isNull():
+            icon_size = min(18, max(12, self.height() - 11))
+            painter.drawPixmap(9, (self.height() - icon_size)//2,
+                               button_icon.pixmap(icon_size, icon_size))
+            label_rect.adjust(icon_size + 5, 0, 0, 0)
+        painter.drawText(label_rect, Qt.AlignmentFlag.AlignCenter,
+                         metrics.elidedText(self.text(), Qt.TextElideMode.ElideRight,
+                                            max(0, label_rect.width())))
+        if self.hasFocus():
+            painter.setPen(QPen(QColor('#8df5ff'), 1.0, Qt.PenStyle.DashLine))
+            painter.drawRect(QRectF(rect).adjusted(4, 4, -4, -4))
+        painter.end()
 
 
-class NovaOneCloseButton(QPushButton):
+class NovaOneCloseButton(NovaOneButton):
     """Small 27 x 25 close control copied from NOVA v1 ConsoleFrame UX."""
     def __init__(self, parent=None):
         super().__init__('×', parent)
