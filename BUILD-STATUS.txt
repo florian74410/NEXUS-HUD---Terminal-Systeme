@@ -1,0 +1,8 @@
+N3XV5 Terminal HUD 1.4.4 NOVA1 Animated (DEV)
+48 Python unit / structural tests PASS
+Python compileall PASS
+Bash syntax PASS
+Asset SVG XML PASS
+No GUI run in this container: PySide6 / QTermWidget unavailable.
+No live SSH or LAN pairing validation.
+Do not merge as stable without Linux Mint/XFCE functional checks.
